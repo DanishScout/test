@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-# Her importerer vi din nye pizza-fil fra routers-mappen
-from routers import pizza
+# Her importerer vi alle dine router-filer fra routers-mappen
+from routers import pizza, stats, radar
 
 app = FastAPI()
 
@@ -13,8 +13,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# HER FORBINDER VI LANDINGSSIDEN TIL DIN PIZZA-FIL:
+# HER FORBINDER VI APPLIKATIONEN TIL DINE SEPARATE ROUTER-FILER:
 app.include_router(pizza.router)
+app.include_router(stats.router)
+app.include_router(radar.router)
 
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
@@ -23,6 +25,7 @@ def landing_page():
     <html lang="da">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>PER 90 Dashboard</title>
         <link href="https://googleapis.com" rel="stylesheet">
         <style>
@@ -33,11 +36,14 @@ def landing_page():
                 color: #e5e7eb;
                 display: flex;
                 min-height: 100vh;
+                max-width: 100vw;
+                overflow-x: hidden; /* Forhindrer uønsket horisontal scroll */
             }
             
             /* SIDEBAR STYLING */
             aside {
                 width: 260px;
+                min-width: 260px; /* Sikrer at sidebaren ikke presses sammen */
                 background: #0B1220;
                 border-right: 1px solid rgba(255, 255, 255, 0.05);
                 padding: 30px 20px;
@@ -79,7 +85,8 @@ def landing_page():
                 flex-grow: 1;
                 padding: 50px;
                 box-sizing: border-box;
-                max-width: 1000px;
+                width: calc(100% - 260px); /* Dynamisk bredde baseret på resterende plads */
+                max-width: 100%;
             }
             h1 {
                 font-size: 36px;
@@ -141,8 +148,9 @@ def landing_page():
             <nav>
                 <a href="/" class="active">🏠 Startside</a>
                 <a href="/pizza">📊 Pizza Diagram</a>
+                <a href="/stats">🏃 Spilleranalyse</a>
+                <a href="/radar">🕸️ Radarsammenligning</a>
                 <a href="#">🏆 Leaderboard</a>
-                <a href="#">🏃 Spilleranalyse</a>
             </nav>
         </aside>
 
@@ -160,7 +168,7 @@ def landing_page():
                 
                 <div class="card">
                     <h3>⚡ Avanceret Metrik</h3>
-                    <p>Brug menuen i venstre side til at navigere mellem dine visualiseringer. Vores Pizza Diagram udregner automatisk percentiler på tværs af specifikke ligaer og positioner.</p>
+                    <p>Brug menuen i venstre side til at navigere mellem dine visualiseringer. Vores moduler udregner automatisk percentiler på tværs af specifikke ligaer og positioner.</p>
                 </div>
             </div>
 
