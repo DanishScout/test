@@ -3,5 +3,4 @@ uvicorn
 pandas
 requests
 Pillow
-html2canvas
 watchfiles
