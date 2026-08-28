@@ -23,7 +23,7 @@ def landing_page():
     <html lang="da">
     <head>
         <meta charset="UTF-8">
-        <title>Footverse Dashboard</title>
+        <title>PER 90 Dashboard</title>
         <link href="https://googleapis.com" rel="stylesheet">
         <style>
             body {
@@ -137,7 +137,7 @@ def landing_page():
 
         <!-- SIDEBAR -->
         <aside>
-            <div class="logo">⚽ FOOTVERSE</div>
+            <div class="logo">⚽ PER 90</div>
             <nav>
                 <a href="/" class="active">🏠 Startside</a>
                 <a href="/pizza">📊 Pizza Diagram</a>
@@ -148,7 +148,7 @@ def landing_page():
 
         <!-- VELKOMST / INDHOLD -->
         <main>
-            <h1>Velkommen til Footverse</h1>
+            <h1>Velkommen til PER 90</h1>
             <p class="subtitle">Din personlige platform til avanceret fodbold- og begivenhedsdata.</p>
             
             <div class="grid">
