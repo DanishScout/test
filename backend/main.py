@@ -23,7 +23,6 @@ def landing_page():
     <html lang="da">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>PER 90 Dashboard</title>
         <link href="https://googleapis.com" rel="stylesheet">
         <style>
@@ -34,14 +33,11 @@ def landing_page():
                 color: #e5e7eb;
                 display: flex;
                 min-height: 100vh;
-                max-width: 100vw;
-                overflow-x: hidden; /* Forhindrer uønsket horisontal scroll */
             }
             
             /* SIDEBAR STYLING */
             aside {
                 width: 260px;
-                min-width: 260px; /* Sikrer at sidebaren ikke presses sammen */
                 background: #0B1220;
                 border-right: 1px solid rgba(255, 255, 255, 0.05);
                 padding: 30px 20px;
@@ -83,8 +79,7 @@ def landing_page():
                 flex-grow: 1;
                 padding: 50px;
                 box-sizing: border-box;
-                width: calc(100% - 260px); /* Dynamisk bredde baseret på resterende plads */
-                max-width: 100%;
+                max-width: 1000px;
             }
             h1 {
                 font-size: 36px;
