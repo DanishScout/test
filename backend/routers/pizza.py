@@ -112,7 +112,7 @@ def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str],
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Footverse - Live Pizza Diagram</title>
+            <title>PER 90 - Live Pizza Diagram</title>
             <link href="https://googleapis.com" rel="stylesheet">
             <script src="https://cloudflare.com"></script>
             <style>
@@ -169,7 +169,7 @@ def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str],
         </head>
         <body>
             <aside>
-                <div class="logo">⚽ FOOTVERSE</div>
+                <div class="logo">⚽ PER 90</div>
                 <nav>
                     <a href="/">🏠 Startside</a>
                     <a href="/pizza" class="active">📊 Pizza Diagram</a>
