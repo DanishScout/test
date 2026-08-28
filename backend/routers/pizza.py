@@ -107,7 +107,6 @@ def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str],
         poss_html = lav_multiselect("Possession", "poss", poss)
         def_html = lav_multiselect("Defending", "defend", defend)
 
-        # 7. Layout med avanceret CSS-modernisering til tjekbokse
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -116,15 +115,15 @@ def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str],
             <link href="https://googleapis.com" rel="stylesheet">
             <script src="https://cloudflare.com"></script>
             <style>
-                body {{ margin: 0; font-family: 'Gabarito', sans-serif; background-color: #070B13; color: #e5e7eb; display: flex; min-height: 100vh; }}
-                aside {{ width: 260px; background: #0B1220; border-right: 1px solid rgba(255, 255, 255, 0.05); padding: 30px 20px; display: flex; flex-direction: column; box-sizing: border-box; flex-shrink: 0; }}
+                body {{ margin: 0; font-family: 'Gabarito', sans-serif; background-color: #070B13; color: #e5e7eb; display: flex; min-height: 100vh; max-width: 100vw; overflow-x: hidden; }}
+                aside {{ width: 260px; min-width: 260px; background: #0B1220; border-right: 1px solid rgba(255, 255, 255, 0.05); padding: 30px 20px; display: flex; flex-direction: column; box-sizing: border-box; flex-shrink: 0; }}
                 .logo {{ font-size: 22px; font-weight: 900; color: #00FFD5; margin-bottom: 40px; }}
                 nav {{ display: flex; flex-direction: column; gap: 10px; }}
                 nav a {{ color: #94a3b8; text-decoration: none; padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; }}
                 nav a:hover, nav a.active {{ background: rgba(0, 255, 213, 0.1); color: #00FFD5; }}
-                main {{ flex-grow: 1; padding: 40px; display: flex; gap: 30px; align-items: start; }}
+                main {{ flex-grow: 1; padding: 40px; display: flex; gap: 30px; align-items: start; width: calc(100% - 260px); max-width: 100%; box-sizing: border-box; }}
                 
-                .control-panel {{ width: 320px; background: #0B1220; border: 1px solid rgba(255, 255, 255, 0.04); padding: 22px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }}
+                .control-panel {{ width: 320px; min-width: 320px; background: #0B1220; border: 1px solid rgba(255, 255, 255, 0.04); padding: 22px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }}
                 .form-group {{ margin-bottom: 16px; position: relative; }}
                 label.form-title {{ display: block; font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }}
                 
@@ -151,12 +150,12 @@ def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str],
                 .check-item input:checked + .custom-box {{ background: #00FFD5; border-color: #00FFD5; }}
                 .check-item input:checked + .custom-box::after {{ content: '✓'; position: absolute; color: #070B13; font-size: 11px; font-weight: 900; top: 50%; left: 50%; transform: translate(-50%, -50%); }}
                 
-                .chart-container {{ padding: 25px; border-radius: 24px; background: #0B1220; border: 1px solid rgba(0,240,255,.08); display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 680px; box-sizing: border-box; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }}
-                .header-card {{ width: 100%; max-width: 540px; margin-bottom: 20px; border: 1px solid rgba(0, 240, 255, 0.08); border-radius: 16px; padding: 15px 20px; background: rgba(7, 11, 19, 0.5); }}
+                .chart-container {{ padding: 25px; border-radius: 24px; background: #0B1220; border: 1px solid rgba(0,240,255,.08); display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 680px; box-sizing: border-box; box-shadow: 0 20px 50px rgba(0,0,0,0.6); min-width: 0; }}
+                .header-card {{ width: 100%; max-width: 100%; margin-bottom: 20px; border: 1px solid rgba(0, 240, 255, 0.08); border-radius: 16px; padding: 15px 20px; background: rgba(7, 11, 19, 0.5); box-sizing: border-box; }}
                 .p-nm {{ font-size: 24px; font-weight: 900; margin: 0 0 5px; text-transform: uppercase; color: #fff; letter-spacing: -0.5px; }}
                 .p-sub-bar {{ display: flex; align-items: center; gap: 12px; font-size: 12px; color: #94a3b8; font-weight: 700; }}
                 
-                svg {{ display: block; margin: auto; overflow: visible; }}
+                svg {{ display: block; margin: auto; overflow: visible; width: 100%; height: auto; max-width: 710px; }}
                 .grid-circle {{ fill: none; stroke: rgba(255,255,255,.08); }}
                 .grid-line {{ stroke: rgba(255,255,255,.06); }}
                 .ax-lbl {{ font-size: 11px; fill: #94a3b8; font-weight: 700; }}
@@ -212,7 +211,7 @@ def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str],
                     </form>
                 </div>
 
-                <div style="display:flex; flex-direction:column; align-items:center; flex-grow:1;">
+                <div style="display:flex; flex-direction:column; align-items:center; flex-grow:1; min-width: 0; width: 100%;">
                     <div class="chart-container" id="chart-only">
                         <div class="header-card">
                             <h2 class="p-nm">{player}</h2>
@@ -293,3 +292,5 @@ def get_pizza_page(
 ):
     return vis_pizza_diagram(player, pos, shoot, p_ass, poss, defend, color)
 
+
+       
