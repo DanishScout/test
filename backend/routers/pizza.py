@@ -113,7 +113,7 @@ def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str],
         <head>
             <title>PER 90 - Live Pizza Diagram</title>
             <link href="https://googleapis.com" rel="stylesheet">
-            <script src="https://cloudflare.com"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
             <style>
                 body {{ margin: 0; font-family: 'Gabarito', sans-serif; background-color: #070B13; color: #e5e7eb; display: flex; min-height: 100vh; max-width: 100vw; overflow-x: hidden; }}
                 aside {{ width: 260px; min-width: 260px; background: #0B1220; border-right: 1px solid rgba(255, 255, 255, 0.05); padding: 30px 20px; display: flex; flex-direction: column; box-sizing: border-box; flex-shrink: 0; }}
@@ -121,9 +121,34 @@ def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str],
                 nav {{ display: flex; flex-direction: column; gap: 10px; }}
                 nav a {{ color: #94a3b8; text-decoration: none; padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; }}
                 nav a:hover, nav a.active {{ background: rgba(0, 255, 213, 0.1); color: #00FFD5; }}
-                main {{ flex-grow: 1; padding: 40px; display: flex; gap: 30px; align-items: start; width: calc(100% - 260px); max-width: 100%; box-sizing: border-box; }}
-                
-                .control-panel {{ width: 320px; min-width: 320px; background: #0B1220; border: 1px solid rgba(255, 255, 255, 0.04); padding: 22px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }}
+                main {{
+                    flex-grow: 1;
+                    padding: 40px;
+                    display: flex; 
+                    gap: 30px;
+                    /* ÆNDRET FRA 'start' TIL 'stretch' - dette tvinger boksene til samme højde */
+                    align-items: stretch; 
+                    width: calc(100% - 260px);
+                    max-width: 100%;
+                    box-sizing: border-box;
+                    }}
+
+                /* KONTROLPANEL (VENSTRE SIDE INDE I MAIN) */
+                .control-panel {{
+                    width: 250px;
+                    min-width: 250px;
+                    background: #0B1220; 
+                    border: 1px solid rgba(255, 255, 255, 0.04); 
+                    padding: 22px; 
+                    border-radius: 16px; 
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+                    box-sizing: border-box;
+                    
+                    /* TILFØJ DISSE TO LINJER: */
+                    display: flex;
+                    flex-direction: column;
+                }}
+
                 .form-group {{ margin-bottom: 16px; position: relative; }}
                 label.form-title {{ display: block; font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }}
                 
