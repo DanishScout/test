@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 # Her importerer vi alle dine router-filer fra routers-mappen
-from routers import pizza, stats, radar
+from routers import pizza, stats, radar, scatter
 
 app = FastAPI()
 
@@ -17,6 +17,7 @@ app.add_middleware(
 app.include_router(pizza.router)
 app.include_router(stats.router)
 app.include_router(radar.router)
+app.include_router(scatter.router)
 
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
@@ -150,6 +151,7 @@ def landing_page():
                 <a href="/pizza">📊 Pizza Diagram</a>
                 <a href="/stats">🏃 Spilleranalyse</a>
                 <a href="/radar">🕸️ Radarsammenligning</a>
+                <a href="/scatter">📈 Scatter Plot</a>
                 <a href="#">🏆 Leaderboard</a>
             </nav>
         </aside>
@@ -162,13 +164,13 @@ def landing_page():
             <div class="grid">
                 <div class="card">
                     <h3>📊 Indlæste Datasæt</h3>
-                    <p>Applikationen er forbundet lokalt til dine CSV-datafiler, som dækker statistikker for både den danske Superliga (den1.csv) og den tyrkiske Süper Lig (tur1.csv).</p>
+                    <p>Applikationen er forbundet lokalt til dine datafiler, som dækker statistikker for over 25 forskellige europæiske ligaer på tværs af både top- og sub-top-niveau.</p>
                     <div class="status-tag">STATUS: FORBUNDET</div>
                 </div>
                 
                 <div class="card">
                     <h3>⚡ Avanceret Metrik</h3>
-                    <p>Brug menuen i venstre side til at navigere mellem dine visualiseringer. Vores moduler udregner automatisk percentiler på tværs af specifikke ligaer og positioner.</p>
+                    <p>Brug menuen i venstre side til at navigere mellem dine visualiseringer. Vores Scatter Plot og diagrammer udregner automatisk værdier og positionelle percentiler live.</p>
                 </div>
             </div>
 
