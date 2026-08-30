@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PER 90 // CORE ENGINE UI</title>
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 340px; background: #0f172a; border-right: 1px solid #1e293b; padding: 25px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        .main-view { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; background: #0b1220; overflow-y: auto; }
+        h1 { font-size: 20px; color: #00ffd5; margin: 0; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+        .group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+        select, input[type="color"] { background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: white; padding: 10px; font-size: 14px; outline: none; width: 100%; box-sizing: border-box; }
+        .metric-box { border: 1px solid #1e293b; border-radius: 10px; padding: 12px; background: #020617; }
+        .metric-hdr { font-size: 12px; font-weight: bold; color: #00ffd5; margin-bottom: 8px; text-transform: uppercase; }
+        .ch-list { display: flex; flex-direction: column; gap: 6px; }
+        .ch-item { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+        .ch-item input { accent-color: #00ffd5; }
+        .download { margin-top: 20px; text-align: center; width: 100%; z-index: 10; position: relative; }
+        .download button { padding: 10px 18px; border-radius: 8px; border: 1px solid #1f2a37; background: #0f172a; color: #e5e7eb; cursor: pointer; font-size: 13px; font-weight: 700; transition: background 0.2s; }
+        .download button:hover { background: #1e293b; }
+        #chart-wrapper { width: 100%; max-width: 710px; display: flex; flex-direction: column; align-items: center; }
+    </style>
+    <script src="https://cloudflare.com"></script>
+</head>
+<body>
+
+    <!-- SIDEBAR KONTROLLER -->
+    <div class="sidebar">
+        <div>
+            <h1>PER 90 // ENGINE</h1>
+            <p style="font-size: 11px; color: #64748b; margin: 4px 0 0 0;">FastAPI // Render Core</p>
+        </div>
+
+        <div class="group">
+            <label>Spiller</label>
+            <select id="playerSelect" onchange="genererDiagram()"><option>Henter spillere...</option></select>
+        </div>
+
+        <div class="group">
+            <label>Sammenlignings-position</label>
+            <select id="posSelect" onchange="genererDiagram()"><option>Henter positioner...</option></select>
+        </div>
+
+        <div class="group">
+            <label>Tema farve</label>
+            <input type="color" id="colorSelect" value="#00FFD5" onchange="genererDiagram()">
+        </div>
+
+        <!-- METRIK GRUPPERINGER -->
+        <div class="metric-box">
+            <div class="metric-hdr">Shooting</div>
+            <div class="ch-list">
+                <label class="ch-item"><input type="checkbox" name="shoot" value="total goals_p90" checked onchange="genererDiagram()"> Goals</label>
+                <label class="ch-item"><input type="checkbox" name="shoot" value="xG_p90" checked onchange="genererDiagram()"> npxG</label>
+            </div>
+        </div>
+
+        <div class="metric-box">
+            <div class="metric-hdr">Passing</div>
+            <div class="ch-list">
+                <label class="ch-item"><input type="checkbox" name="p_ass" value="total assists_p90" checked onchange="genererDiagram()"> Assists</label>
+                <label class="ch-item"><input type="checkbox" name="p_ass" value="xA_p90" checked onchange="genererDiagram()"> xA</label>
+            </div>
+        </div>
+
+        <div class="metric-box">
+            <div class="metric-hdr">Possession</div>
+            <div class="ch-list">
+                <label class="ch-item"><input type="checkbox" name="poss" value="total won contest_p90" checked onchange="genererDiagram()"> Successful Dribbles</label>
+                <label class="ch-item"><input type="checkbox" name="poss" value="total contest_p90" onchange="genererDiagram()"> Dribble Attempts</label>
+            </div>
+        </div>
+
+        <div class="metric-box">
+            <div class="metric-hdr">Defending</div>
+            <div class="ch-list">
+                <label class="ch-item"><input type="checkbox" name="defend" value="tackle_success_pct_p90" checked onchange="genererDiagram()"> Tackles Won %</label>
+                <label class="ch-item"><input type="checkbox" name="defend" value="aerial_success_pct_p90" onchange="genererDiagram()"> Aerials Won %</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIAGRAM OG HENT KNAP -->
+    <div class="main-view">
+        <div id="chart-wrapper">
+            <div id="diagram-target"></div>
+            <div class="download">
+                <button onclick="downloadPNG()">Download as PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let nuvaerendeFilnavn = "report_diagram";
+
+        // Henter spillere og positioner live fra FastAPI
+        async function indlaesFiltre() {
+            try {
+                const res = await fetch('/api/pizza/filters');
+                const data = await res.json();
+                
+                const pSelect = document.getElementById('playerSelect');
+                const posSelect = document.getElementById('posSelect');
+                
+                // Fyld spillermenuen dynamisk
+                if (data.players && data.players.length > 0) {
+                    pSelect.innerHTML = data.players.map(p => `<option value="${p}">${p}</option>`).join('');
+                } else {
+                    pSelect.innerHTML = '<option value="">Ingen spillere fundet</option>';
+                }
+                
+                // Fyld positionsmenuen dynamisk
+                if (data.positions && data.positions.length > 0) {
+                    posSelect.innerHTML = data.positions.map(p => `<option value="${p}">${p}</option>`).join('');
+                } else {
+                    posSelect.innerHTML = '<option value="">Ingen positioner fundet</option>';
+                }
+            } catch(e) {
+                console.error("Fejl under hentning af filtre:", e);
+                document.getElementById('playerSelect').innerHTML = '<option value="">Kunne ikke hente data</option>';
+            }
+            // Generer det første diagram automatisk efter data er hentet
+            genererDiagram();
+        }
+
+        // Henter diagrammets HTML fra backenden
+        async function genererDiagram() {
+            const player = document.getElementById('playerSelect').value;
+            const pos = document.getElementById('posSelect').value;
+            const color = document.getElementById('colorSelect').value;
+
+            if (!player || !pos) return;
+
+            let query = new URLSearchParams({ player, pos, color });
+            
+            document.querySelectorAll('input[type=checkbox]:checked').forEach(box => { 
+                query.append(box.name, box.value); 
+            });
+
+            try {
+                const res = await fetch(`/api/pizza?${query.toString()}`);
+                const data = await res.json();
+                
+                document.getElementById('diagram-target').innerHTML = data.html;
+                nuvaerendeFilnavn = data.player_slug || "report";
+            } catch (err) { 
+                console.error("Fejl under generering af diagram:", err); 
+            }
+        }
+
+        function downloadPNG() { 
+            const el = document.getElementById("chart-only"); 
+            const title = document.querySelector('.p-nm'); 
+            if(!el) return alert("Intet diagram fundet!");
+            if(title) { title.style.webkitTextFillColor = '#fff'; title.style.color = '#fff'; } 
+            html2canvas(el, { scale: 4, backgroundColor: "#0B1220", useCORS: true }).then(canvas => { 
+                const link = document.createElement("a"); 
+                link.download = "report_" + nuvaerendeFilnavn + ".png"; 
+                link.href = canvas.toDataURL("image/png"); 
+                link.click(); 
+            }).catch(e => console.error(e)); 
+        }
+
+        window.addEventListener('DOMContentLoaded', indlaesFiltre);
+    </script>
+</body>
+</html>
