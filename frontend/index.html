@@ -2,17 +2,25 @@
 <html lang="da">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PER 90 - Fodbold Data App</title>
+    
+    <!-- Tvinger browseren på mobiler til at downloade Gabarito direkte fra skyen -->
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Gabarito:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
     <!-- Korrekt CDN link til html2canvas til PNG-eksport -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        /* Globalt mørkeblå sidetema */
+        /* Globalt mørkeblå sidetema - Sikret med Gabarito på alle enheder */
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Gabarito', system-ui, -apple-system, sans-serif; 
             background: #060b13; 
             color: #fff; 
             margin: 0; 
             padding: 0; 
+            -webkit-font-smoothing: antialiased;
         }
 
         /* Global Top Header & Navigation - Fikset til én vandret linje */
@@ -27,7 +35,7 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
         
-        /* Simpelt og rent PER 90 logo med rød skråstreg */
+        /* Helt simpelt, rent og flot PER 90 logo uden skråstreg */
         .app-logo-text {
             font-size: 20px;
             font-weight: 900;
@@ -35,11 +43,6 @@
             letter-spacing: 0.5px;
             white-space: nowrap;
             user-select: none;
-        }
-        .logo-slash {
-            color: #ef4444;
-            text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
-            margin: 0 1px;
         }
         
         /* Navigationsmenu sikret mod uønskede linjeskift */
@@ -101,47 +104,65 @@
         }
         .nav-btn.active::after { width: 0; }
 
-        /* Global Layout for siderne */
+        /* Global Layout for indhold - Nu centreret i ét stort spor */
         .app-container {
             padding: 30px;
-            max-width: 1400px;
+            max-width: 1100px; /* Perfekt bredde til centreret indhold */
             margin: 0 auto;
         }
         .page-content { display: none; }
-        .page-content.active { display: flex; gap: 25px; }
-
-        /* Layout for data-siderne */
-        .sidebar { 
-            width: 320px; 
-            background: #111827; 
-            padding: 20px; 
-            border-radius: 16px; 
-            border: 1px solid rgba(255,255,255,0.05); 
-            height: fit-content; 
+        
+        /* Nyt overskueligt layout i fuld bredde over hinanden */
+        .page-content.active { 
+            display: flex; 
+            flex-direction: column;
+            gap: 25px; 
+            width: 100%;
         }
+
+        /* Det nye vandrette kontrolpanel placeret over diagrammet */
+        .control-panel {
+            background: #111827;
+            padding: 20px 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 240, 255, 0.05);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Fordeler felterne automatisk */
+            gap: 20px;
+            align-items: flex-end;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        /* Main content container uden sidebar */
         .main-content { 
-            flex: 1; 
+            width: 100%;
             background: #0b1220; 
             padding: 20px; 
-            border-radius: 16px; 
+            border-radius: 24px; 
+            border: 1px solid rgba(255,255,255,0.02);
             display: flex; 
             justify-content: center; 
             align-items: center; 
             min-height: 750px; 
+            box-sizing: border-box;
         }
 
         /* Form- og Dropdown-styling */
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-        select, input[type="color"] { width: 100%; padding: 10px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        .form-group { margin-bottom: 0; } /* Fjernet margin da panelet bruger grid-gap */
+        label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        select { font-family: inherit; width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 12px; font-size: 14px; box-sizing: border-box; height: 46px; }
+        
+        /* Justering af farvevælger så den fylder og matcher select-højden */
+        input[type="color"] { font-family: inherit; width: 100%; padding: 6px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 12px; box-sizing: border-box; height: 46px; cursor: pointer; }
         
         .dropdown-select-box { position: relative; width: 100%; }
         .dropdown-trigger {
-            width: 100%; padding: 10px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+            font-family: inherit; font-weight: 600; width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 12px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 46px;
         }
         .dropdown-trigger::after { content: '▼'; font-size: 10px; color: #64748b; }
         .dropdown-content {
-            display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 8px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0;
+            display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 12px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0;
         }
         .dropdown-content.show { display: block; }
         .metric-group-title { font-size: 11px; color: #00FFD5; padding: 6px 12px 4px 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0, 240, 255, 0.02); }
@@ -149,16 +170,15 @@
         .checkbox-item:hover { background: #2d3748; }
         .checkbox-item input { accent-color: #00FFD5; width: 16px; height: 16px; cursor: pointer; }
         
-        #chart-container { width: 100%; max-width: 710px; }
+        #chart-container { width: 100%; max-width: 710px; display: flex; justify-content: center; }
         h2 { margin-top: 0; font-size: 20px; border-bottom: 1px solid #374151; padding-bottom: 10px; }
         .home-card { background: #111827; border: 1px solid rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; text-align: center; width: 100%; max-width: 600px; margin: 50px auto; }
     </style>
 </head>
 <body>
 
-    <!-- Globale Top Header med strømlinet menu og nyt logo -->
     <header class="global-header">
-        <div class="app-logo-text">PER 9<span class="logo-slash">/</span>0</div>
+        <div class="app-logo-text">PER 90</div>
         <nav class="nav-menu">
             <button class="nav-btn active" onclick="switchPage('home')">Home</button>
             <button class="nav-btn" onclick="switchPage('pizza')">Pizza Chart</button>
@@ -186,14 +206,14 @@
 
         <!-- 2. Pizza Chart Side -->
         <div id="page-pizza" class="page-content">
-            <div class="sidebar">
-                <h2>Pizza Setup</h2>
+            <!-- Nyt vandret kontrolpanel placeret over diagrammet -->
+            <div class="control-panel">
                 <div class="form-group">
                     <label for="playerSelect">Select player</label>
                     <select id="playerSelect" onchange="fetchPizza()"></select>
                 </div>
                 <div class="form-group">
-                    <label Praeset for="posSelect">Position to compare against</label>
+                    <label for="posSelect">Position to compare against</label>
                     <select id="posSelect" onchange="fetchPizza()"></select>
                 </div>
                 <div class="form-group">
@@ -208,6 +228,7 @@
                     <input type="color" id="colorPicker" value="#00FFD5" onchange="fetchPizza()">
                 </div>
             </div>
+            
             <div class="main-content">
                 <div id="chart-container">
                     <p style="color: #64748b; text-align: center;">Vælg mindst 3 metrics i dropdown-menuen for at bygge dit pizza-diagram...</p>
@@ -217,9 +238,10 @@
 
         <!-- 3. Scatter Plot Side -->
         <div id="page-scatter" class="page-content">
-            <div class="sidebar">
-                <h2>Scatter Setup</h2>
-                <p style="color: #94a3b8; font-size: 13px;">Her kommer kontrollerne til dit scatter plot (f.eks. x-akse og y-akse valg).</p>
+            <div class="control-panel">
+                <div style="color: #64748b; font-size: 13px;">
+                    <strong>Scatter Kontroller Placeholder:</strong> Her kan vi om lidt placere X- og Y-akse vælgere side om side.
+                </div>
             </div>
             <div class="main-content">
                 <div style="color: #64748b; text-align: center;">
@@ -231,9 +253,8 @@
 
         <!-- 4. Global Placeholder Side -->
         <div id="page-placeholder" class="page-content">
-            <div class="sidebar">
-                <h2 id="placeholder-sidebar-title">Modul Setup</h2>
-                <p style="color: #94a3b8; font-size: 13px;">Konfigurationsmulighederne indlæses dynamisk, når modulerne forbindes til serveren.</p>
+            <div class="control-panel">
+                <div style="color: #64748b; font-size: 13px;">Dynamiske indstillinger for dette modul...</div>
             </div>
             <div class="main-content">
                 <div style="color: #64748b; text-align: center;">
@@ -257,7 +278,6 @@
                 event.target.classList.add('active');
                 if(targetPage === 'placeholder') {
                     const moduleName = event.target.innerText;
-                    document.getElementById('placeholder-sidebar-title').innerText = moduleName + " Setup";
                     document.getElementById('placeholder-main-title').innerText = moduleName + " Visualisering";
                 }
             }
@@ -291,7 +311,6 @@
                 });
         });
 
-        // Opbyg afkrydsningsfelter og vælg automatisk én metric pr. kategori som default
         function buildMetricsCheckboxes() {
             const wrapper = document.getElementById('metricsWrapper');
             wrapper.innerHTML = "";
@@ -302,7 +321,6 @@
                 catLabel.innerText = category;
                 wrapper.appendChild(catLabel);
 
-                // Marker den første attribut i hver kategori som default checket
                 let isFirstInMetricCategory = true;
 
                 for (const [key, displayName] of Object.entries(metricsObj)) {
@@ -316,11 +334,11 @@
                         <label for="chk-${key}" style="flex:1; cursor:pointer;">${displayName.replace('\n', ' ')}</label>
                     `;
                     wrapper.appendChild(item);
-                    isFirstInMetricCategory = false; // Kun den absolut første markeres
+                    isFirstInMetricCategory = false;
                 }
             }
             updateDropdownStatus();
-            fetchPizza(); // Kald backend med defaults med det samme
+            fetchPizza(); 
         }
 
         function updateDropdownStatus() {
