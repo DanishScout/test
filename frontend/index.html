@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PER 90 - Fodbold Data App</title>
     
-    <!-- Tvinger browseren på mobiler til at downloade Gabarito direkte fra skyen -->
+    <!-- Tvinger browseren på mobiler til at downloade den nye test-font live fra skyen -->
     <link rel="preconnect" href="https://googleapis.com">
     <link rel="preconnect" href="https://gstatic.com" crossorigin>
-    <link href="https://googleapis.com/css2?family=Gabarito:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Korrekt CDN link til html2canvas til PNG-eksport -->
     <script src="https://cloudflare.com"></script>
     <style>
-        /* Globalt mørkeblå sidetema med Gabarito sikret på alle mobile enheder */
+        /* Globalt mørkeblå sidetema - Tvinger Space Grotesk igennem på alle skærme */
         body { 
-            font-family: 'Gabarito', system-ui, -apple-system, sans-serif; 
+            font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; 
             background: #060b13; 
             color: #fff; 
             margin: 0; 
@@ -39,10 +39,10 @@
             z-index: 100;
         }
         
-        /* Helt rent og minimalistisk PER 90 logo uden skråstreg */
+        /* Helt rent, clean og minimalistisk PER 90 logo uden skråstreg */
         .app-logo-text {
             font-size: 21px;
-            font-weight: 900;
+            font-weight: 700;
             color: #fff;
             letter-spacing: -0.5px;
             white-space: nowrap;
@@ -124,16 +124,16 @@
         h2 { margin-top: 0; font-size: 20px; font-weight: 700; border-bottom: 1px solid #374151; padding-bottom: 10px; }
         .home-card { background: #111827; border: 1px solid rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; text-align: center; width: 100%; max-width: 600px; margin: 50px auto; }
         
-        /* Gør layoutet på selve siderne lodret, hvis skærmen er meget smal */
         @media (max-width: 800px) {
             .page-content.active { flex-direction: column; }
             .sidebar { width: 100%; box-sizing: border-box; }
         }
     </style>
 </head>
+
 <body>
 
-    <!-- Globale Top Header med den fungerende vandrette scrollbar -->
+    <!-- Globale Top Header med det rene, clean logo og vandret scrollbar -->
     <header class="global-header">
         <div class="app-logo-text">PER 90</div>
         
@@ -157,7 +157,7 @@
         <!-- 1. Hjemmeskærm (Home) -->
         <div id="page-home" class="page-content active">
             <div class="home-card">
-                <h1 style="font-size: 32px; font-weight: 900; margin-bottom: 10px;">Velkommen til PER 90</h1>
+                <h1 style="font-size: 32px; font-weight: 700; margin-bottom: 10px;">Velkommen til PER 90</h1>
                 <p style="color: #94a3b8; font-size: 16px; margin-bottom: 30px;">Avanceret fodbold-datavisualisering og spiller-sammenligninger i realtid.</p>
                 <button class="nav-btn" style="background:#00FFD5; color:#060b13; border:none; padding:12px 24px; font-size:16px; font-weight:700;" onclick="switchPage('pizza')">Kom i gang</button>
             </div>
