@@ -1,190 +1,52 @@
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+import os
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-# Her importerer vi alle dine router-filer fra routers-mappen
-from routers import pizza, stats, radar, scatter
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-app = FastAPI()
+# 📁 VIGTIGT: Henter diagram-generatoren og filter-funktionen fra din pizza.py
+from backend.routers.pizza import vis_pizza_diagram, hent_filtre
 
+app = FastAPI(title="PER 90 // CORE ENGINE API")
+
+# CORS tillader din HTML-frontend at hente data fejlfrit under lokal test
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# HER FORBINDER VI APPLIKATIONEN TIL DINE SEPARATE ROUTER-FILER:
-app.include_router(pizza.router)
-app.include_router(stats.router)
-app.include_router(radar.router)
-app.include_router(scatter.router)
+# 📡 ENDPOINT: Sender listen af unikke spillere og positioner fra din CSV direkte til frontenden
+@app.get("/api/pizza/filters")
+def pizza_filter_api():
+    return hent_filtre()
 
-@app.get("/", response_class=HTMLResponse)
-def landing_page():
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="da">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>PER 90 Dashboard</title>
-        <link href="https://googleapis.com" rel="stylesheet">
-        <style>
-            body {
-                margin: 0;
-                font-family: 'Gabarito', sans-serif;
-                background-color: #070B13;
-                color: #e5e7eb;
-                display: flex;
-                min-height: 100vh;
-                max-width: 100vw;
-                overflow-x: hidden; /* Forhindrer uønsket horisontal scroll */
-            }
-            
-            /* SIDEBAR STYLING */
-            aside {
-                width: 260px;
-                min-width: 260px; /* Sikrer at sidebaren ikke presses sammen */
-                background: #0B1220;
-                border-right: 1px solid rgba(255, 255, 255, 0.05);
-                padding: 30px 20px;
-                display: flex;
-                flex-direction: column;
-                box-sizing: border-box;
-            }
-            .logo {
-                font-size: 22px;
-                font-weight: 900;
-                color: #00FFD5;
-                letter-spacing: -0.5px;
-                margin-bottom: 40px;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            nav {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-            nav a {
-                color: #94a3b8;
-                text-decoration: none;
-                padding: 12px 16px;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 14px;
-                transition: all 0.2s;
-            }
-            nav a:hover, nav a.active {
-                background: rgba(0, 255, 213, 0.1);
-                color: #00FFD5;
-            }
-            
-            /* MAIN CONTENT STYLING */
-            main {
-                flex-grow: 1;
-                padding: 50px;
-                box-sizing: border-box;
-                width: calc(100% - 260px); /* Dynamisk bredde baseret på resterende plads */
-                max-width: 100%;
-            }
-            h1 {
-                font-size: 36px;
-                font-weight: 900;
-                color: #fff;
-                margin-top: 0;
-                margin-bottom: 10px;
-                letter-spacing: -1px;
-            }
-            p.subtitle {
-                color: #64748b;
-                font-size: 16px;
-                margin-bottom: 40px;
-            }
-            
-            /* INFOBOKSE STYLING */
-            .grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                gap: 20px;
-                margin-bottom: 40px;
-            }
-            .card {
-                background: #0B1220;
-                border: 1px solid rgba(255, 255, 255, 0.05);
-                border-radius: 16px;
-                padding: 24px;
-                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-            }
-            .card h3 {
-                margin-top: 0;
-                color: #fff;
-                font-size: 18px;
-                margin-bottom: 12px;
-            }
-            .card p {
-                color: #94a3b8;
-                font-size: 14px;
-                line-height: 1.6;
-                margin: 0;
-            }
-            .status-tag {
-                display: inline-block;
-                padding: 4px 8px;
-                background: rgba(0, 255, 213, 0.1);
-                color: #00FFD5;
-                border-radius: 4px;
-                font-size: 11px;
-                font-weight: 700;
-                margin-top: 15px;
-            }
-        </style>
-    </head>
-    <body>
+# 📡 ENDPOINT: Modtager parametre og spytter det færdige SVG/HTML-diagram ud som JSON
+@app.get("/api/pizza")
+def pizza_api(
+    player: str = Query(None), 
+    pos: str = Query(None), 
+    shoot: list[str] = Query([]), 
+    p_ass: list[str] = Query([]), 
+    poss: list[str] = Query([]), 
+    defend: list[str] = Query([]), 
+    color: str = "#00FFD5"
+):
+    # Sender parametrene direkte videre til din datalogi i pizza.py
+    data = vis_pizza_diagram(player, pos, shoot, p_ass, poss, defend, color)
+    return data
 
-        <!-- SIDEBAR -->
-        <aside>
-            <div class="logo">⚽ PER 90</div>
-            <nav>
-                <a href="/" class="active">🏠 Startside</a>
-                <a href="/pizza">📊 Pizza Diagram</a>
-                <a href="/stats">🏃 Spilleranalyse</a>
-                <a href="/radar">🕸️ Radarsammenligning</a>
-                <a href="/scatter">📈 Scatter Plot</a>
-                <a href="#">🏆 Leaderboard</a>
-            </nav>
-        </aside>
+# 🌐 FRONTEND: Rettet til at servere direkte fra test/frontend i stedet for backend/frontend
+if os.path.exists("frontend"):
+    app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
-        <!-- VELKOMST / INDHOLD -->
-        <main>
-            <h1>Velkommen til PER 90</h1>
-            <p class="subtitle">Din personlige platform til avanceret fodbold- og begivenhedsdata.</p>
-            
-            <div class="grid">
-                <div class="card">
-                    <h3>📊 Indlæste Datasæt</h3>
-                    <p>Applikationen er forbundet lokalt til dine datafiler, som dækker statistikker for over 25 forskellige europæiske ligaer på tværs af både top- og sub-top-niveau.</p>
-                    <div class="status-tag">STATUS: FORBUNDET</div>
-                </div>
-                
-                <div class="card">
-                    <h3>⚡ Avanceret Metrik</h3>
-                    <p>Brug menuen i venstre side til at navigere mellem dine visualiseringer. Vores Scatter Plot og diagrammer udregner automatisk værdier og positionelle percentiler live.</p>
-                </div>
-            </div>
-
-            <div class="card" style="max-width: 100%;">
-                <h3>📌 Om Platformen</h3>
-                <p>Dette web-interface er bygget oven på en lynhurtig Python FastAPI-motor og fjerner alle de tidligere begrænsninger fra Streamlit. Det sikrer dig fuld kontrol over designet, hurtigere indlæsningstider og mulighed for udbygning med ægte frontend-rammeværktøjer i fremtiden.</p>
-            </div>
-        </main>
-
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content, status_code=200)
+    @app.get("/")
+    def laes_indeks():
+        return FileResponse("frontend/index.html")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # host 0.0.0.0 og port 8000 sikrer fuld kompatibilitet lokalt og på Render
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
