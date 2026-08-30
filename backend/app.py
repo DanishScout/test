@@ -58,6 +58,7 @@ class PizzaRequest(BaseModel):
     position: str
     metrics: List[str]
     color: str = '#00FFD5'
+
 @app.get("/", response_class=HTMLResponse)
 def get_index():
     """Serverer din index.html fil direkte fra frontend-mappen"""
@@ -65,7 +66,6 @@ def get_index():
         raise HTTPException(status_code=404, detail="index.html blev ikke fundet i frontend mappen")
     with open(FRONTEND_PATH, "r", encoding="utf-8") as f:
         return f.read()
-
 @app.get("/api/initial-data")
 def get_initial_data():
     """Henter listen over unikke spillere og positioner til menuerne"""
@@ -108,6 +108,7 @@ def generate_pizza(req_data: PizzaRequest):
             comparison_df[f'{k}_percentile'] = comparison_df[k].rank(pct=True, method='max') * 100.0
 
         r1 = comparison_df[comparison_df['Player Name'] == p1].iloc[0]
+        
         # Hent klublogo via Opta API
         team_id = r1['contestantId']
         logo_base64 = ""
@@ -181,6 +182,7 @@ def generate_pizza(req_data: PizzaRequest):
         <div class="wrap" id="report">
             <div class="chart-container" id="chart-only">
                 <style>
+                    /* Her tvinges den nye test-font igennem uafhængigt af lokale downloads */
                     @import url('https://googleapis.com');
                     
                     .wrap {{
@@ -207,7 +209,7 @@ def generate_pizza(req_data: PizzaRequest):
                         display: flex;
                         flex-direction: column;
                         align-items: center;
-                        font-family: 'Gabarito', sans-serif;
+                        font-family: 'Gabarito', system-ui, sans-serif;
                         color: #e5e7eb;
                     }}
                     .chart-container::before {{ content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(#0f172a, #020617); z-index: 0; border-radius: 24px; }}
@@ -226,7 +228,7 @@ def generate_pizza(req_data: PizzaRequest):
                     }}
                     .h-cnt {{ display: flex; gap: 20px; width: 100%; box-sizing: border-box; }}
                     .p-meta-right {{ display: flex; flex-direction: column; flex-grow: 1; }}
-                    .p-nm {{ font-size: 27px; font-weight: 900; margin: 0 0 10px; text-transform: uppercase; letter-spacing: -.5px; color: #fff; }}
+                    .p-nm {{ font-size: 27px; font-weight: 700; margin: 0 0 10px; text-transform: uppercase; letter-spacing: -.5px; color: #fff; }}
                     .tactic-line {{ width: 100%; height: 2px; margin-bottom: 12px; }}
                     .p-sub-bar {{ display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; flex-wrap: wrap; }}
                     .meta-item {{ display: flex; align-items: center; gap: 6px; color: #fff; }}
@@ -238,10 +240,10 @@ def generate_pizza(req_data: PizzaRequest):
                     svg {{ display: block; margin: auto; overflow: visible; max-width: 100%; height: auto; position: relative; z-index: 1; }}
                     .grid-circle {{ fill: none; stroke: rgba(255,255,255,.08); }}
                     .grid-line {{ stroke: rgba(255,255,255,.06); }}
-                    .ax-lbl {{ font-size: 12px; fill: #94a3b8; font-weight: 700; letter-spacing: .5px; }}
+                    .ax-lbl {{ font-family: 'Gabarito', sans-serif; font-size: 12px; fill: #94a3b8; font-weight: 900; letter-spacing: .5px; }}
                     .slice-b {{ fill: {selected_color}1a; stroke: {selected_color}; stroke-width: 1.75; stroke-linejoin: round; filter: drop-shadow(0 0 6px {selected_color}26); }}
                     .bg-b {{ fill: #0f172a; stroke: {selected_color}cc; }}
-                    .tx-b {{ fill: {selected_color}; font-size: 12px; font-weight: 700; }}
+                    .tx-b {{ font-family: 'Gabarito', sans-serif; fill: {selected_color}; font-size: 12px; font-weight: 700; }}
                     .chart-footer, .chart-footer-source {{ text-align: center; width: 100%; font-size: 11px; font-weight: 300; color: #e5e7eb; letter-spacing: .4px; padding: 0 40px; box-sizing: border-box; position: relative; z-index: 2; }}
                     .chart-footer {{ margin-top: 1px; opacity: 0.75; }}
                     .chart-footer-source {{ margin-top: 6px; opacity: 0.5; }}
@@ -267,7 +269,7 @@ def generate_pizza(req_data: PizzaRequest):
         
                             <div class="p-sub-bar">
                                 <div class="meta-item">
-                                    <div class="logo-shape">{'<img class="club-crest-small" src="'+logo_base64+'" />' if logo_base64 else ''}</div>
+                                    <div class="logo-shape">{f'<img class="club-crest-small" src="{logo_base64}" />' if logo_base64 else ''}</div>
                                     <span class="data-val">{r1.get('League', 'N/A')}</span>
                                 </div>
                                 <span class="pipe-divider">|</span>
@@ -278,7 +280,7 @@ def generate_pizza(req_data: PizzaRequest):
                                 <span class="pipe-divider">|</span>
                                 <div class="meta-item">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                    <span class="data-val">{int(r1.get('total mins played', 0)) if r1.get('total mins played') else 0} MIN.</span>
+                                    <span class="data-val">{pi if (pi := r1.get('total mins played', 0)) and not pd.isna(pi) else 0} MIN.</span>
                                 </div>
                             </div>
                         </div>
@@ -287,7 +289,7 @@ def generate_pizza(req_data: PizzaRequest):
                 
                 <svg width="710" height="570" viewBox="0 0 710 570">
                     <circle cx="{CX}" cy="{CY}" r="50" class="grid-circle" />
-                    <circle cx="{CX}" cy="{CY}" r="100" class="grid-circle" />
+                    <circle cx="{CX}" cy ="100" class="grid-circle" />
                     <circle cx="{CX}" cy="{CY}" r="150" class="grid-circle" />
                     <circle cx="{CX}" cy="{CY}" r="{MAX_R}" class="grid-circle" style="stroke: rgba(255, 255, 255, .08);" />
                     {f'<image href="{logo_base64}" x="{CX-24}" y="{CY-24}" height="48" width="48"/>' if logo_base64 else ''}
@@ -295,9 +297,8 @@ def generate_pizza(req_data: PizzaRequest):
                 </svg>
         
                 <div class="chart-footer">{p1}'s percentile rank vs. {player_league} {selected_pos}s</div>
-                <div class="chart-footer-source">Generated via ://render.com</div>
+                <div class="chart-footer-source">Generated via Render</div>
             </div>
-            
             <div class="download"><button onclick="downloadPNG()">Download as PNG</button></div>
         </div>
         """
