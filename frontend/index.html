@@ -2,28 +2,20 @@
 <html lang="da">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PER 90 - Fodbold Data App</title>
-    
-    <!-- Tvinger browseren på mobiler til at downloade Gabarito direkte fra skyen -->
-    <link rel="preconnect" href="https://googleapis.com">
-    <link rel="preconnect" href="https://gstatic.com" crossorigin>
-    <link href="https://googleapis.com/css2?family=Gabarito:wght@400;600;700;900&display=swap" rel="stylesheet">
-    
     <!-- Korrekt CDN link til html2canvas til PNG-eksport -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cloudflare.com"></script>
     <style>
-        /* Globalt mørkeblå sidetema - Sikret med Gabarito på alle enheder */
+        /* Globalt mørkeblå sidetema */
         body { 
-            font-family: 'Gabarito', system-ui, -apple-system, sans-serif; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             background: #060b13; 
             color: #fff; 
             margin: 0; 
             padding: 0; 
-            -webkit-font-smoothing: antialiased;
         }
 
-        /* Global Top Header & Navigation - Fikset til én vandret linje */
+        /* Global Top Header & Navigation */
         .global-header {
             background: #0b1220;
             border-bottom: 1px solid rgba(0, 240, 255, 0.08);
@@ -35,7 +27,6 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
         
-        /* Helt simpelt, rent og flot PER 90 logo uden skråstreg */
         .app-logo-text {
             font-size: 20px;
             font-weight: 900;
@@ -44,8 +35,12 @@
             white-space: nowrap;
             user-select: none;
         }
+        .logo-slash {
+            color: #ef4444;
+            text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+            margin: 0 1px;
+        }
         
-        /* Navigationsmenu sikret mod uønskede linjeskift */
         .nav-menu {
             display: flex;
             gap: 4px;
@@ -54,11 +49,9 @@
             flex: 1;
             padding-bottom: 2px;
         }
-        /* Skjul scrollbar for Chrome, Safari, Opera og Firefox i menuen */
         .nav-menu::-webkit-scrollbar { display: none; }
         .nav-menu { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Navigationsknapper */
         .nav-btn {
             background: transparent;
             border: 1px solid transparent;
@@ -104,65 +97,57 @@
         }
         .nav-btn.active::after { width: 0; }
 
-        /* Global Layout for indhold - Nu centreret i ét stort spor */
+        /* Global Layout for siderne */
         .app-container {
             padding: 30px;
-            max-width: 1100px; /* Perfekt bredde til centreret indhold */
+            max-width: 1400px;
             margin: 0 auto;
         }
         .page-content { display: none; }
-        
-        /* Nyt overskueligt layout i fuld bredde over hinanden */
-        .page-content.active { 
-            display: flex; 
-            flex-direction: column;
-            gap: 25px; 
-            width: 100%;
-        }
+        .page-content.active { display: flex; flex-direction: column; gap: 25px; }
 
-        /* Det nye vandrette kontrolpanel placeret over diagrammet */
-        .control-panel {
-            background: #111827;
-            padding: 20px 25px;
-            border-radius: 20px;
-            border: 1px solid rgba(0, 240, 255, 0.05);
+        /* NYT HORISONTALT SETUP PANEL (Placeret over diagrammet) */
+        .top-setup-bar { 
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Fordeler felterne automatisk */
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            align-items: flex-end;
-            box-sizing: border-box;
+            background: #111827; 
+            padding: 20px; 
+            border-radius: 16px; 
+            border: 1px solid rgba(255,255,255,0.05); 
             width: 100%;
+            box-sizing: border-box;
         }
 
-        /* Main content container uden sidebar */
+        /* Centralt visningsområde under kontrolpanelet */
         .main-content { 
             width: 100%;
             background: #0b1220; 
-            padding: 20px; 
-            border-radius: 24px; 
-            border: 1px solid rgba(255,255,255,0.02);
+            padding: 30px; 
+            border-radius: 16px; 
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            min-height: 750px; 
+            min-height: 650px; 
             box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.02);
         }
 
         /* Form- og Dropdown-styling */
-        .form-group { margin-bottom: 0; } /* Fjernet margin da panelet bruger grid-gap */
+        .form-group { margin-bottom: 0; }
         label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-        select { font-family: inherit; width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 12px; font-size: 14px; box-sizing: border-box; height: 46px; }
+        select, input[type="color"] { width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; box-sizing: border-box; height: 45px; }
         
-        /* Justering af farvevælger så den fylder og matcher select-højden */
-        input[type="color"] { font-family: inherit; width: 100%; padding: 6px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 12px; box-sizing: border-box; height: 46px; cursor: pointer; }
-        
+        /* Specifik tilpasning af farvevælger for at matche dropdowns */
+        input[type="color"] { padding: 4px; cursor: pointer; }
+
         .dropdown-select-box { position: relative; width: 100%; }
         .dropdown-trigger {
-            font-family: inherit; font-weight: 600; width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 12px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 46px;
+            width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 45px;
         }
         .dropdown-trigger::after { content: '▼'; font-size: 10px; color: #64748b; }
         .dropdown-content {
-            display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 12px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0;
+            display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 8px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0;
         }
         .dropdown-content.show { display: block; }
         .metric-group-title { font-size: 11px; color: #00FFD5; padding: 6px 12px 4px 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0, 240, 255, 0.02); }
@@ -170,44 +155,46 @@
         .checkbox-item:hover { background: #2d3748; }
         .checkbox-item input { accent-color: #00FFD5; width: 16px; height: 16px; cursor: pointer; }
         
-        #chart-container { width: 100%; max-width: 710px; display: flex; justify-content: center; }
-        h2 { margin-top: 0; font-size: 20px; border-bottom: 1px solid #374151; padding-bottom: 10px; }
+        #chart-container { width: 100%; display: flex; justify-content: center; flex-direction: column; align-items: center; }
         .home-card { background: #111827; border: 1px solid rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; text-align: center; width: 100%; max-width: 600px; margin: 50px auto; }
+        
+        /* Knap til PNG-eksport */
+        .export-btn { background: rgba(0, 240, 255, 0.05); color: #00FFD5; border: 1px solid rgba(0, 240, 255, 0.2); padding: 12px 20px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.2s; height: 45px; display: flex; align-items: center; justify-content: center; }
+        .export-btn:hover { background: rgba(0, 240, 255, 0.1); border-color: #00FFD5; color: #fff; }
     </style>
 </head>
 <body>
 
+    <!-- Globale Top Header -->
     <header class="global-header">
-        <div class="app-logo-text">PER 90</div>
+        <div class="app-logo-text">PER 9<span class="logo-slash">/</span>0</div>
         <nav class="nav-menu">
-            <button class="nav-btn active" onclick="switchPage('home')">Home</button>
-            <button class="nav-btn" onclick="switchPage('pizza')">Pizza Chart</button>
-            <button class="nav-btn" onclick="switchPage('scatter')">Scatter Plot</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Player Stats</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Radar comparison</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Table</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Stat filters</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Similarity score</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Role rankings</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Event data</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Match reports</button>
+            <button class="nav-btn active" onclick="switchPage('home', event)">Home</button>
+            <button class="nav-btn" onclick="switchPage('pizza', event)">Pizza Chart</button>
+            <button class="nav-btn" onclick="switchPage('scatter', event)">Scatter Plot</button>
+            <button class="nav-btn" onclick="switchPage('placeholder', event)">Player Stats</button>
+            <button class="nav-btn" onclick="switchPage('placeholder', event)">Radar comparison</button>
+            <button class="nav-btn" onclick="switchPage('placeholder', event)">Table</button>
+            <button class="nav-btn" onclick="switchPage('placeholder', event)">Stat filters</button>
+            <button class="nav-btn" onclick="switchPage('placeholder', event)">Similarity score</button>
+            <button class="nav-btn" onclick="switchPage('placeholder', event)">Role rankings</button>
+            <button class="nav-btn" onclick="switchPage('placeholder', event)">Event data</button>
+            <button class="nav-btn" onclick="switchPage('placeholder', event)">Match reports</button>
         </nav>
     </header>
     <div class="app-container">
-
         <!-- 1. Hjemmeskærm (Home) -->
         <div id="page-home" class="page-content active">
             <div class="home-card">
                 <h1 style="font-size: 32px; margin-bottom: 10px;">Velkommen til PER 90</h1>
                 <p style="color: #94a3b8; font-size: 16px; margin-bottom: 30px;">Avanceret fodbold-datavisualisering og spiller-sammenligninger i realtid.</p>
-                <button class="nav-btn" style="background:#00FFD5; color:#060b13; border:none; padding:12px 24px; font-size:16px;" onclick="switchPage('pizza')">Kom i gang</button>
+                <button class="nav-btn" style="background:#00FFD5; color:#060b13; border:none; padding:12px 24px; font-size:16px;" onclick="switchPage('pizza', event)">Kom i gang</button>
             </div>
         </div>
 
-        <!-- 2. Pizza Chart Side -->
+        <!-- 2. Pizza Chart Side (Med vandret top-bar) -->
         <div id="page-pizza" class="page-content">
-            <!-- Nyt vandret kontrolpanel placeret over diagrammet -->
-            <div class="control-panel">
+            <div class="top-setup-bar">
                 <div class="form-group">
                     <label for="playerSelect">Select player</label>
                     <select id="playerSelect" onchange="fetchPizza()"></select>
@@ -227,8 +214,10 @@
                     <label for="colorPicker">Choose color</label>
                     <input type="color" id="colorPicker" value="#00FFD5" onchange="fetchPizza()">
                 </div>
+                <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="export-btn" style="width: 100%;" onclick="downloadPNG()">Eksportér PNG</button>
+                </div>
             </div>
-            
             <div class="main-content">
                 <div id="chart-container">
                     <p style="color: #64748b; text-align: center;">Vælg mindst 3 metrics i dropdown-menuen for at bygge dit pizza-diagram...</p>
@@ -236,11 +225,20 @@
             </div>
         </div>
 
-        <!-- 3. Scatter Plot Side -->
+        <!-- 3. Scatter Plot Side (Med vandret top-bar) -->
         <div id="page-scatter" class="page-content">
-            <div class="control-panel">
-                <div style="color: #64748b; font-size: 13px;">
-                    <strong>Scatter Kontroller Placeholder:</strong> Her kan vi om lidt placere X- og Y-akse vælgere side om side.
+            <div class="top-setup-bar">
+                <div class="form-group">
+                    <label>X-Axis Metric</label>
+                    <select id="scatterXSelect"><option>Vælg metric...</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Y-Axis Metric</label>
+                    <select id="scatterYSelect"><option>Vælg metric...</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Filter Position</label>
+                    <select id="scatterPosSelect"><option>Alle positioner</option></select>
                 </div>
             </div>
             <div class="main-content">
@@ -251,10 +249,13 @@
             </div>
         </div>
 
-        <!-- 4. Global Placeholder Side -->
+        <!-- 4. Global Placeholder Side (Med vandret top-bar) -->
         <div id="page-placeholder" class="page-content">
-            <div class="control-panel">
-                <div style="color: #64748b; font-size: 13px;">Dynamiske indstillinger for dette modul...</div>
+            <div class="top-setup-bar">
+                <div class="form-group">
+                    <label id="placeholder-sidebar-title">Modul Setup</label>
+                    <select><option>Standardindstillinger</option></select>
+                </div>
             </div>
             <div class="main-content">
                 <div style="color: #64748b; text-align: center;">
@@ -269,15 +270,17 @@
         let allMetrics = {};
         let nuvaerendeSpillerNavn = "report";
 
-        function switchPage(pageId) {
+        // Tilføjet cross-browser understøttelse af navigation via eksplicit 'e' event-parameter
+        function switchPage(pageId, e) {
             const targetPage = ['home', 'pizza', 'scatter'].includes(pageId) ? pageId : 'placeholder';
             document.querySelectorAll('.nav-menu .nav-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
 
-            if (event && event.target) {
-                event.target.classList.add('active');
+            if (e && e.target) {
+                e.target.classList.add('active');
                 if(targetPage === 'placeholder') {
-                    const moduleName = event.target.innerText;
+                    const moduleName = e.target.innerText;
+                    document.getElementById('placeholder-sidebar-title').innerText = moduleName + " Setup";
                     document.getElementById('placeholder-main-title').innerText = moduleName + " Visualisering";
                 }
             }
@@ -334,7 +337,7 @@
                         <label for="chk-${key}" style="flex:1; cursor:pointer;">${displayName.replace('\n', ' ')}</label>
                     `;
                     wrapper.appendChild(item);
-                    isFirstInMetricCategory = false;
+                    isFirstInMetricCategory = false; 
                 }
             }
             updateDropdownStatus();
@@ -348,8 +351,8 @@
         }
 
         function fetchPizza() {
-            const player = document.getElementById('playerSelect').value;
-            const position = document.getElementById('posSelect').value;
+            const player = document.getElementById('playerSelect').value || "";
+            const position = document.getElementById('posSelect').value || "";
             const color = document.getElementById('colorPicker').value;
             const checkedBoxes = document.querySelectorAll('input[name="pizzaMetrics"]:checked');
             const selectedMetrics = Array.from(checkedBoxes).map(cb => cb.value);
@@ -375,6 +378,10 @@
 
         function downloadPNG() {
             const el = document.getElementById("chart-only");
+            if (!el) {
+                console.error("Fejl: Elementet med id 'chart-only' blev ikke fundet. Sørg for at din servers API pakker diagrammet ind i en div med id='chart-only'.");
+                return;
+            }
             const title = document.querySelector('.p-nm'); 
             if(title) { title.style.webkitTextFillColor = '#fff'; title.style.color = '#fff'; } 
             
