@@ -2,56 +2,64 @@
 <html lang="da">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PER 90 - Fodbold Data App</title>
+    
+    <!-- Tvinger browseren på mobiler til at downloade Gabarito direkte fra skyen -->
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Gabarito:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    
     <!-- Korrekt CDN link til html2canvas til PNG-eksport -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cloudflare.com"></script>
     <style>
-        /* Globalt mørkeblå sidetema */
+        /* Globalt mørkeblå sidetema med Gabarito sikret på alle mobile enheder */
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Gabarito', system-ui, -apple-system, sans-serif; 
             background: #060b13; 
             color: #fff; 
             margin: 0; 
             padding: 0; 
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Global Top Header & Navigation - Fikset til én vandret linje */
+        /* Top Header med fast højde og flex-justering */
         .global-header {
             background: #0b1220;
             border-bottom: 1px solid rgba(0, 240, 255, 0.08);
-            padding: 15px 40px;
+            padding: 0 40px;
+            height: 70px;
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            gap: 30px; 
+            gap: 35px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
         }
         
-        /* Simpelt og rent PER 90 logo med rød skråstreg */
+        /* Helt rent og minimalistisk PER 90 logo uden skråstreg */
         .app-logo-text {
-            font-size: 20px;
+            font-size: 21px;
             font-weight: 900;
             color: #fff;
-            letter-spacing: 0.5px;
+            letter-spacing: -0.5px;
             white-space: nowrap;
             user-select: none;
         }
-        .logo-slash {
-            color: #ef4444;
-            text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
-            margin: 0 1px;
-        }
         
-        /* Navigationsmenu sikret mod uønskede linjeskift */
+        /* Vandret scroll-menu uden uønskede linjeskift til mobiler */
         .nav-menu {
             display: flex;
+            align-items: center;
             gap: 4px;
             overflow-x: auto;
             white-space: nowrap;
             flex: 1;
-            padding-bottom: 2px;
+            height: 100%;
         }
-        /* Skjul scrollbar for Chrome, Safari, Opera og Firefox i menuen */
+        /* Skjul scrollbar i menuen for alle browsertyper */
         .nav-menu::-webkit-scrollbar { display: none; }
         .nav-menu { -ms-overflow-style: none; scrollbar-width: none; }
         
@@ -60,105 +68,75 @@
             background: transparent;
             border: 1px solid transparent;
             color: #94a3b8;
-            padding: 8px 14px;
+            padding: 8px 12px;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 700;
             font-size: 11px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             position: relative;
         }
-        
         .nav-btn:hover {
             color: #fff;
             background: rgba(0, 240, 255, 0.03);
         }
-        
         .nav-btn.active {
             color: #00FFD5;
             background: rgba(0, 240, 255, 0.06);
             border-color: rgba(0, 240, 255, 0.12);
         }
-        
         .nav-btn::after {
-            content: '';
-            position: absolute;
-            bottom: 2px;
-            left: 50%;
-            width: 0;
-            height: 2px;
-            background: #00FFD5;
-            transition: all 0.25s ease;
-            transform: translateX(-50%);
-            border-radius: 2px;
-            opacity: 0;
+            content: ''; position: absolute; bottom: 2px; left: 50%; width: 0; height: 2px; background: #00FFD5; transition: all 0.25s ease; transform: translateX(-50%); border-radius: 2px; opacity: 0;
         }
-        .nav-btn:hover::after {
-            width: 40%;
-            opacity: 0.8;
-        }
+        .nav-btn:hover::after { width: 40%; opacity: 0.8; }
         .nav-btn.active::after { width: 0; }
 
-        /* Global Layout for siderne */
-        .app-container {
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
+        /* Global Layout for indhold - Justeret pga. fixed header */
+        .app-container { 
+            padding: 110px 30px 30px 30px; 
+            max-width: 1400px; 
+            margin: 0 auto; 
         }
         .page-content { display: none; }
         .page-content.active { display: flex; gap: 25px; }
 
-        /* Layout for data-siderne */
-        .sidebar { 
-            width: 320px; 
-            background: #111827; 
-            padding: 20px; 
-            border-radius: 16px; 
-            border: 1px solid rgba(255,255,255,0.05); 
-            height: fit-content; 
-        }
-        .main-content { 
-            flex: 1; 
-            background: #0b1220; 
-            padding: 20px; 
-            border-radius: 16px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 750px; 
-        }
+        /* Datasider (Sidebar + Main) */
+        .sidebar { width: 320px; background: #111827; padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); height: fit-content; }
+        .main-content { flex: 1; background: #0b1220; padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.02); display: flex; justify-content: center; align-items: center; min-height: 750px; }
 
         /* Form- og Dropdown-styling */
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-        select, input[type="color"] { width: 100%; padding: 10px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        select, input[type="color"] { font-family: inherit; width: 100%; padding: 10px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
         
         .dropdown-select-box { position: relative; width: 100%; }
-        .dropdown-trigger {
-            width: 100%; padding: 10px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
-        }
+        .dropdown-trigger { font-family: inherit; font-weight: 600; width: 100%; padding: 10px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
         .dropdown-trigger::after { content: '▼'; font-size: 10px; color: #64748b; }
-        .dropdown-content {
-            display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 8px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0;
-        }
+        .dropdown-content { display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 8px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0; }
         .dropdown-content.show { display: block; }
-        .metric-group-title { font-size: 11px; color: #00FFD5; padding: 6px 12px 4px 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0, 240, 255, 0.02); }
+        .metric-group-title { font-size: 11px; color: #00FFD5; padding: 6px 12px 4px 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0, 240, 255, 0.02); }
         .checkbox-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 13px; color: #e5e7eb; cursor: pointer; transition: background 0.15s ease; }
         .checkbox-item:hover { background: #2d3748; }
         .checkbox-item input { accent-color: #00FFD5; width: 16px; height: 16px; cursor: pointer; }
         
         #chart-container { width: 100%; max-width: 710px; }
-        h2 { margin-top: 0; font-size: 20px; border-bottom: 1px solid #374151; padding-bottom: 10px; }
+        h2 { margin-top: 0; font-size: 20px; font-weight: 700; border-bottom: 1px solid #374151; padding-bottom: 10px; }
         .home-card { background: #111827; border: 1px solid rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; text-align: center; width: 100%; max-width: 600px; margin: 50px auto; }
+        
+        /* Gør layoutet på selve siderne lodret, hvis skærmen er meget smal */
+        @media (max-width: 800px) {
+            .page-content.active { flex-direction: column; }
+            .sidebar { width: 100%; box-sizing: border-box; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Globale Top Header med strømlinet menu og nyt logo -->
+    <!-- Globale Top Header med den fungerende vandrette scrollbar -->
     <header class="global-header">
-        <div class="app-logo-text">PER 9<span class="logo-slash">/</span>0</div>
+        <div class="app-logo-text">PER 90</div>
+        
         <nav class="nav-menu">
             <button class="nav-btn active" onclick="switchPage('home')">Home</button>
             <button class="nav-btn" onclick="switchPage('pizza')">Pizza Chart</button>
@@ -173,14 +151,15 @@
             <button class="nav-btn" onclick="switchPage('placeholder')">Match reports</button>
         </nav>
     </header>
+
     <div class="app-container">
 
         <!-- 1. Hjemmeskærm (Home) -->
         <div id="page-home" class="page-content active">
             <div class="home-card">
-                <h1 style="font-size: 32px; margin-bottom: 10px;">Velkommen til PER 90</h1>
+                <h1 style="font-size: 32px; font-weight: 900; margin-bottom: 10px;">Velkommen til PER 90</h1>
                 <p style="color: #94a3b8; font-size: 16px; margin-bottom: 30px;">Avanceret fodbold-datavisualisering og spiller-sammenligninger i realtid.</p>
-                <button class="nav-btn" style="background:#00FFD5; color:#060b13; border:none; padding:12px 24px; font-size:16px;" onclick="switchPage('pizza')">Kom i gang</button>
+                <button class="nav-btn" style="background:#00FFD5; color:#060b13; border:none; padding:12px 24px; font-size:16px; font-weight:700;" onclick="switchPage('pizza')">Kom i gang</button>
             </div>
         </div>
 
@@ -193,7 +172,7 @@
                     <select id="playerSelect" onchange="fetchPizza()"></select>
                 </div>
                 <div class="form-group">
-                    <label Praeset for="posSelect">Position to compare against</label>
+                    <label for="posSelect">Position to compare against</label>
                     <select id="posSelect" onchange="fetchPizza()"></select>
                 </div>
                 <div class="form-group">
@@ -291,7 +270,6 @@
                 });
         });
 
-        // Opbyg afkrydsningsfelter og vælg automatisk én metric pr. kategori som default
         function buildMetricsCheckboxes() {
             const wrapper = document.getElementById('metricsWrapper');
             wrapper.innerHTML = "";
@@ -302,7 +280,6 @@
                 catLabel.innerText = category;
                 wrapper.appendChild(catLabel);
 
-                // Marker den første attribut i hver kategori som default checket
                 let isFirstInMetricCategory = true;
 
                 for (const [key, displayName] of Object.entries(metricsObj)) {
@@ -316,11 +293,11 @@
                         <label for="chk-${key}" style="flex:1; cursor:pointer;">${displayName.replace('\n', ' ')}</label>
                     `;
                     wrapper.appendChild(item);
-                    isFirstInMetricCategory = false; // Kun den absolut første markeres
+                    isFirstInMetricCategory = false;
                 }
             }
             updateDropdownStatus();
-            fetchPizza(); // Kald backend med defaults med det samme
+            fetchPizza(); 
         }
 
         function updateDropdownStatus() {
