@@ -1,400 +1,306 @@
-<!DOCTYPE html>
-<html lang="da">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PER 90 - Fodbold Data App</title>
-    <!-- Hent Gabarito skrifttype fra Google Fonts -->
-    <link rel="preconnect" href="https://googleapis.com">
-    <link rel="preconnect" href="https://gstatic.com" crossorigin>
-    <link href="https://googleapis.com/css2?family=Gabarito:wght@400;600;700;900&display=swap" rel="stylesheet">
-    
-    <!-- Korrekt CDN link til html2canvas til PNG-eksport -->
-    <script src="https://cloudflare.com"></script>
-    <style>
-        /* Globalt mørkeblå sidetema */
-        body { 
-            font-family: 'Gabarito', system-ui, -apple-system, sans-serif; 
-            background: #060b13; 
-            color: #fff; 
-            margin: 0; 
-            padding: 0; 
-            -webkit-font-smoothing: antialiased;
-        }
+import os
+import math
+import base64
+from io import BytesIO
+import requests
+import pandas as pd
+from PIL import Image
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from typing import List
 
-        /* Strømlinet Top Header */
-        .global-header {
-            background: #0b1220;
-            border-bottom: 1px solid rgba(0, 240, 255, 0.08);
-            padding: 15px 40px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 100;
-        }
-        
-        /* Ultra-clean og super simpelt PER 90 logo uden skråstreg */
-        .app-logo-text {
-            font-size: 21px;
-            font-weight: 900;
-            color: #fff;
-            letter-spacing: -0.5px;
-            white-space: nowrap;
-            user-select: none;
-        }
-        
-        /* Desktop menu-container */
-        .nav-menu {
-            display: flex;
-            gap: 4px;
-        }
-        
-        /* Navigationsknapper - Gjort mindre (11px) og mere strømlinede */
-        .nav-btn {
-            background: transparent;
-            border: 1px solid transparent;
-            color: #94a3b8;
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 700;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            position: relative;
-        }
-        .nav-btn:hover {
-            color: #fff;
-            background: rgba(0, 240, 255, 0.03);
-        }
-        .nav-btn.active {
-            color: #00FFD5;
-            background: rgba(0, 240, 255, 0.06);
-            border-color: rgba(0, 240, 255, 0.12);
-        }
-        .nav-btn::after {
-            content: ''; position: absolute; bottom: 2px; left: 50%; width: 0; height: 2px; background: #00FFD5; transition: all 0.25s ease; transform: translateX(-50%); border-radius: 2px; opacity: 0;
-        }
-        .nav-btn:hover::after { width: 40%; opacity: 0.8; }
-        .nav-btn.active::after { width: 0; }
+app = FastAPI()
 
-        /* Mobil Hamburger-knap */
-        .hamburger-toggle {
-            display: none;
-            flex-direction: column;
-            gap: 6px;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-            z-index: 110;
-        }
-        .hamburger-toggle span {
-            display: block;
-            width: 24px;
-            height: 3px;
-            background: #fff;
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
+# Find de præcise stier til dine CSV-datafiler i backend-mappen
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV1_PATH = os.path.join(BASE_DIR, 'den1.csv')
+CSV2_PATH = os.path.join(BASE_DIR, 'den2.csv')
+FRONTEND_PATH = os.path.abspath(os.path.join(BASE_DIR, '..', 'frontend', 'index.html'))
+
+# Definition af dine metrics fra pizza.py
+AVAILABLE_METRICS = {
+    "Shooting": {
+        "total goals_p90": "Goals",
+        "xG_p90": "npxG",
+        "total ontarget attempt_p90": "Shots\nOn Target",
+    },
+    "Passing": {
+        "total assists_p90": "Assists",
+        "xA_p90": "xA",
+        "total att assist_p90": "Key Passes",
+        "xT_pass_p90": "xT via\nLive Passes",
+        "progressive_passes_p90": "Progressive\nPasses",   
+    },
+    "Possession": {
+        "total won contest_p90": "Successful\nDribbles",
+        "total contest_p90": "Dribble\nAttempts",
+        "dribble_success_pct_p90": "Dribble\nSuccess %",
+    },
+    "Defending": {
+        "tackle_success_pct_p90": "Tackles\nWon %",
+        "aerial_success_pct_p90": "Aerials\nWon %",
+    },
+}
+
+# Fladgør strukturen til opslag af tekst-labels
+METRICS_MAPPING = {k: v for cat in AVAILABLE_METRICS.values() for k, v in cat.items()}
+
+def load_data():
+    """Indlæser og kombinerer dine specifikke liga-filer direkte"""
+    df1 = pd.read_csv(CSV1_PATH)
+    df2 = pd.read_csv(CSV2_PATH)
+    return pd.concat([df1, df2], ignore_index=True)
+
+# Datamodel til validering af POST-requests (Pizza setup)
+class PizzaRequest(BaseModel):
+    player: str
+    position: str
+    metrics: List[str]
+    color: str = '#00FFD5'
+@app.get("/", response_class=HTMLResponse)
+def get_index():
+    """Serverer din index.html fil direkte fra frontend-mappen"""
+    if not os.path.exists(FRONTEND_PATH):
+        raise HTTPException(status_code=404, detail="index.html blev ikke fundet i frontend mappen")
+    with open(FRONTEND_PATH, "r", encoding="utf-8") as f:
+        return f.read()
+
+@app.get("/api/initial-data")
+def get_initial_data():
+    """Henter listen over unikke spillere og positioner til menuerne"""
+    try:
+        data = load_data()
+        players = sorted(data['Player Name'].dropna().unique())
+        pos_column = 'Pos.' if 'Pos.' in data.columns else ('Position' if 'Position' in data.columns else data.columns)
+        positions = sorted(data[pos_column].dropna().unique())
+        return {"players": players, "positions": positions, "metrics": AVAILABLE_METRICS}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/generate-pizza")
+def generate_pizza(req_data: PizzaRequest):
+    """Modtager parametre og genererer dit præcise HTML/SVG-diagram"""
+    try:
+        p1 = req_data.player
+        selected_pos = req_data.position
+        sel_keys = req_data.metrics
+        selected_color = req_data.color
+
+        if len(sel_keys) < 3:
+            return {"html": "<p style='color:#e5e7eb; text-align:center;'>Vælg mindst 3 metrics for at generere diagrammet.</p>"}
+
+        data = load_data()
+        pos_column = 'Pos.' if 'Pos.' in data.columns else ('Position' if 'Position' in data.columns else data.columns)
         
-        .hamburger-toggle.open span:nth-child(1) { transform: translateY(9px) rotate(45deg); background: #00FFD5; }
-        .hamburger-toggle.open span:nth-child(2) { opacity: 0; }
-        .hamburger-toggle.open span:nth-child(3) { transform: translateY(-9px) rotate(-45deg); background: #00FFD5; }
-
-        /* Global Layout for indhold */
-        .app-container { padding: 30px; max-width: 1400px; margin: 0 auto; }
-        .page-content { display: none; }
-        .page-content.active { display: flex; gap: 25px; }
-
-        /* Datasider (Sidebar + Main) */
-        .sidebar { width: 320px; background: #111827; padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); height: fit-content; }
-        .main-content { flex: 1; background: #0b1220; padding: 20px; border-radius: 16px; display: flex; justify-content: center; align-items: center; min-height: 750px; }
-
-        /* Form- og Dropdown-styling */
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-        select, input[type="color"] { font-family: inherit; width: 100%; padding: 10px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        player_row = data[data['Player Name'] == p1].iloc[0]
+        player_league = player_row['League']
         
-        .dropdown-select-box { position: relative; width: 100%; }
-        .dropdown-trigger { font-family: inherit; font-weight: 600; width: 100%; padding: 10px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
-        .dropdown-trigger::after { content: '▼'; font-size: 10px; color: #64748b; }
-        .dropdown-content { display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 8px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0; }
-        .dropdown-content.show { display: block; }
-        .metric-group-title { font-size: 11px; color: #00FFD5; padding: 6px 12px 4px 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0, 240, 255, 0.02); }
-        .checkbox-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 13px; color: #e5e7eb; cursor: pointer; transition: background 0.15s ease; }
-        .checkbox-item:hover { background: #2d3748; }
-        .checkbox-item input { accent-color: #00FFD5; width: 16px; height: 16px; cursor: pointer; }
+        # Filtrer sammenligningsgruppen: samme liga OG samme valgte position
+        filter_mask = (data['League'] == player_league) & (data[pos_column] == selected_pos)
+        comparison_df = data[filter_mask].copy()
         
-        #chart-container { width: 100%; max-width: 710px; }
-        h2 { margin-top: 0; font-size: 20px; font-weight: 700; border-bottom: 1px solid #374151; padding-bottom: 10px; }
-        .home-card { background: #111827; border: 1px solid rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; text-align: center; width: 100%; max-width: 600px; margin: 50px auto; }
+        if p1 not in comparison_df['Player Name'].values:
+            comparison_df = pd.concat([comparison_df, data[data['Player Name'] == p1]], ignore_index=True)
+        
+        # Beregn percentil-ranks (0-100) dynamisk inden for gruppen
+        for k in sel_keys:
+            comparison_df[f'{k}_percentile'] = comparison_df[k].rank(pct=True, method='max') * 100.0
 
-        /* Mobil- og tabletoptimering */
-        @media (max-width: 1100px) {
-            .global-header { padding: 15px 20px; }
-            .nav-menu {
-                position: fixed;
-                top: 0; right: -300px;
-                width: 260px; height: 100vh;
-                background: #0b1220;
-                border-left: 1px solid rgba(0, 240, 255, 0.1);
-                flex-direction: column;
-                gap: 0; padding: 80px 15px 20px 15px;
-                transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                box-shadow: -10px 0 30px rgba(0,0,0,0.6);
-                z-index: 105;
-            }
-            .nav-menu.open { right: 0; }
-            .nav-btn { width: 100%; text-align: left; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.03); border-radius: 0; font-size: 14px; }
-            .nav-btn::after { display: none; }
-            .hamburger-toggle { display: flex; }
+        r1 = comparison_df[comparison_df['Player Name'] == p1].iloc[0]
+        # Hent klublogo via Opta API
+        team_id = r1['contestantId']
+        logo_base64 = ""
+        try:
+            url = f'https://opta.net{team_id}'
+            response = requests.get(url, timeout=3)
+            if response.status_code == 200:
+                team_logo = Image.open(BytesIO(response.content))
+                buffered = BytesIO()
+                team_logo.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode()
+                logo_base64 = f"data:image/png;base64,{img_str}"
+        except Exception:
+            pass
+
+        # Matematiske parametre for dit pizza-diagram
+        CX, CY, MAX_R, N = 355, 252, 200, len(sel_keys)
+        p1_display = p1 if len(p1) <= 35 else p1[:32] + "..."
+        slice_width = 360.0 / N
+        
+        def get_slice_path(cx, cy, r, start_angle, end_angle):
+            start_rad = math.radians(start_angle - 90)
+            end_rad = math.radians(end_angle - 90)
+            x1 = cx + r * math.cos(start_rad)
+            y1 = cy + r * math.sin(start_rad)
+            x2 = cx + r * math.cos(end_rad)
+            y2 = cy + r * math.sin(end_rad)
+            return f"M {cx} {cy} L {x1} {y1} A {r} {r} 0 0 1 {x2} {y2} Z"
+
+        pizza_slices, grid_lines, labels = "", "", ""
+        
+        # Generer diagramstykker, akser og dine tekst-labels
+        for i, k in enumerate(sel_keys):
+            start_ang = i * slice_width
+            end_ang = start_ang + slice_width
+            mid_ang = start_ang + (slice_width / 2.0)
             
-            .page-content.active { flex-direction: column; }
-            .sidebar { width: 100%; box-sizing: border-box; margin-bottom: 15px; }
-            .main-content { min-height: auto; padding: 15px; }
-        }
-    </style>
-</head>
-<body>
-
-    <!-- Globale Top Header med det helt rene PER 90 logo -->
-    <header class="global-header">
-        <div class="app-logo-text">PER 90</div>
+            val = max(0.0, min(float(r1.get(f'{k}_percentile', 0)), 100.0))
+            slice_r = (val / 100.0) * MAX_R
+            
+            if slice_r > 0:
+                pizza_slices += f'<path d="{get_slice_path(CX, CY, slice_r, start_ang, end_ang)}" class="slice-b" />\n'
+            
+            rad_line = math.radians(start_ang - 90)
+            lx2 = CX + MAX_R * math.cos(rad_line)
+            ly2 = CY + MAX_R * math.sin(rad_line)
+            grid_lines += f'<line class="grid-line" x1="{CX}" y1="{CY}" x2="{lx2:.1f}" y2="{ly2:.1f}" />\n'
+            
+            rad_mid = math.radians(mid_ang - 90)
+            tx = CX + (MAX_R + 42) * math.cos(rad_mid)
+            ty = CY + (MAX_R + 42) * math.sin(rad_mid)
+            
+            metric_lines = METRICS_MAPPING[k].split('\n')
+            tspan_html = ""
+            for idx, line in enumerate(metric_lines):
+                dy_value = "-4" if idx == 0 else "1.1em"
+                tspan_html += f'<tspan x="0" dy="{dy_value}">{line}</tspan>'
+            
+            label_text = f'<text class="ax-lbl" text-anchor="middle">{tspan_html}</text>'
+            badge_y_offset = 20 if len(metric_lines) > 1 else 8
+            
+            # Det præcise skjold-badge-look under tekst-akserne
+            val_badge = f"""
+            <g transform="translate(-13, {badge_y_offset})">
+                <path d="M 0 0 L 26 0 L 26 10 C 26 15, 13 20, 13 20 C 13 20, 0 15, 0 10 Z" class="bg-b" />
+                <text class="tx-b" x="13" y="11" text-anchor="middle">{int(val)}</text>
+            </g>"""
+            labels += f'<g transform="translate({tx:.1f}, {ty:.1f})">{label_text}{val_badge}</g>\n'
+        # Opbygning af den endelige HTML-streng med din præcise CSS-indpakning og download-skripter
+        html_response = f"""
+        <div class="wrap" id="report">
+            <div class="chart-container" id="chart-only">
+                <style>
+                    @import url('https://googleapis.com');
+                    
+                    .wrap {{
+                        width: 100%;
+                        max-width: 710px;
+                        margin: auto;
+                        background: #0B1220;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                    }}
+                    .chart-container {{ 
+                        position: relative; 
+                        padding: 15px 15px 35px; 
+                        border-radius: 24px; 
+                        width: 100%; 
+                        max-width: 710px; 
+                        border: 1px solid rgba(0,240,255,.08); 
+                        box-shadow: 0 30px 60px -15px #000, inset 0 1px 0 rgba(255,255,255,.05); 
+                        box-sizing: border-box; 
+                        opacity: .85; 
+                        overflow: hidden;
+                        background: #0B1220;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        font-family: 'Gabarito', sans-serif;
+                        color: #e5e7eb;
+                    }}
+                    .chart-container::before {{ content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(#0f172a, #020617); z-index: 0; border-radius: 24px; }}
+                    .header-card {{ 
+                        position: relative; 
+                        z-index: 2; 
+                        width: 100%; 
+                        max-width: 575px; 
+                        margin: 15px auto 25px; 
+                        padding: 20px 25px; 
+                        background: transparent; 
+                        border: 1px solid rgba(0, 240, 255, 0.08); 
+                        border-radius: 16px; 
+                        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); 
+                        box-sizing: border-box; 
+                    }}
+                    .h-cnt {{ display: flex; gap: 20px; width: 100%; box-sizing: border-box; }}
+                    .p-meta-right {{ display: flex; flex-direction: column; flex-grow: 1; }}
+                    .p-nm {{ font-size: 27px; font-weight: 900; margin: 0 0 10px; text-transform: uppercase; letter-spacing: -.5px; color: #fff; }}
+                    .tactic-line {{ width: 100%; height: 2px; margin-bottom: 12px; }}
+                    .p-sub-bar {{ display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; flex-wrap: wrap; }}
+                    .meta-item {{ display: flex; align-items: center; gap: 6px; color: #fff; }}
+                    .meta-item svg {{ opacity: .6; fill: none; stroke: {selected_color}; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; width: 15px; height: 15px; }}
+                    .logo-shape {{ display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: rgba(0,240,255,0.1); border: 1px solid {selected_color}; border-radius: 50%; padding: 2px; box-sizing: border-box; box-shadow: 0 0 6px rgba(0, 240, 255, 0.2); }}
+                    .club-crest-small {{ width: 100%; height: 100%; object-fit: contain; }}
+                    .data-val {{ color: #94a3b8; font-weight: 600; }}
+                    .pipe-divider {{ color: rgba(0,240,255,.2); font-size: 14px; }}
+                    svg {{ display: block; margin: auto; overflow: visible; max-width: 100%; height: auto; position: relative; z-index: 1; }}
+                    .grid-circle {{ fill: none; stroke: rgba(255,255,255,.08); }}
+                    .grid-line {{ stroke: rgba(255,255,255,.06); }}
+                    .ax-lbl {{ font-size: 12px; fill: #94a3b8; font-weight: 700; letter-spacing: .5px; }}
+                    .slice-b {{ fill: {selected_color}1a; stroke: {selected_color}; stroke-width: 1.75; stroke-linejoin: round; filter: drop-shadow(0 0 6px {selected_color}26); }}
+                    .bg-b {{ fill: #0f172a; stroke: {selected_color}cc; }}
+                    .tx-b {{ fill: {selected_color}; font-size: 12px; font-weight: 700; }}
+                    .chart-footer, .chart-footer-source {{ text-align: center; width: 100%; font-size: 11px; font-weight: 300; color: #e5e7eb; letter-spacing: .4px; padding: 0 40px; box-sizing: border-box; position: relative; z-index: 2; }}
+                    .chart-footer {{ margin-top: 1px; opacity: 0.75; }}
+                    .chart-footer-source {{ margin-top: 6px; opacity: 0.5; }}
+                    .download {{ margin-top: 20px; text-align: center; width: 100%; z-index: 10; position: relative; }}
+                    .download button {{ padding: 8px 14px; border-radius: 8px; border: 1px solid #1f2a37; background: #0f172a; color: #e5e7eb; cursor: pointer; font-size: 13px; font-weight: 700; transition: background 0.2s; }}
+                    .download button:hover {{ background: #1e293b; }}
+                </style>
         
-        <!-- Hamburger-knap (Kun synlig på mobil/tablet) -->
-        <button class="hamburger-toggle" id="hamburgerBtn" onclick="toggleMobileMenu(event)">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-
-        <nav class="nav-menu" id="navMenu">
-            <button class="nav-btn active" onclick="switchPage('home')">Home</button>
-            <button class="nav-btn" onclick="switchPage('pizza')">Pizza Chart</button>
-            <button class="nav-btn" onclick="switchPage('scatter')">Scatter Plot</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Player Stats</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Radar comparison</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Table</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Stat filters</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Similarity score</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Role rankings</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Event data</button>
-            <button class="nav-btn" onclick="switchPage('placeholder')">Match reports</button>
-        </nav>
-    </header>
-
-    <div class="app-container">
-
-        <!-- 1. Hjemmeskærm (Home) -->
-        <div id="page-home" class="page-content active">
-            <div class="home-card">
-                <h1 style="font-size: 32px; font-weight: 900; margin-bottom: 10px;">Velkommen til PER 90</h1>
-                <p style="color: #94a3b8; font-size: 16px; margin-bottom: 30px;">Avanceret fodbold-datavisualisering og spiller-sammenligninger i realtid.</p>
-                <button class="nav-btn" style="background:#00FFD5; color:#060b13; border:none; padding:12px 24px; font-size:16px; font-weight:700;" onclick="switchPage('pizza')">Kom i gang</button>
-            </div>
-        </div>
-
-        <!-- 2. Pizza Chart Side -->
-        <div id="page-pizza" class="page-content">
-            <div class="sidebar">
-                <h2>Pizza Setup</h2>
-                <div class="form-group">
-                    <label for="playerSelect">Select player</label>
-                    <select id="playerSelect" onchange="fetchPizza()"></select>
-                </div>
-                <div class="form-group">
-                    <label for="posSelect">Position to compare against</label>
-                    <select id="posSelect" onchange="fetchPizza()"></select>
-                </div>
-                <div class="form-group">
-                    <label>Metrics Selection</label>
-                    <div class="dropdown-select-box">
-                        <div class="dropdown-trigger" id="metricDropdownTrigger" onclick="toggleMetricDropdown(event)">Vælg metrics...</div>
-                        <div class="dropdown-content" id="metricsWrapper"></div>
+                <div class="header-card">
+                    <div class="h-cnt">
+                        <div class="p-meta-right">
+                            <h2 class="p-nm">{p1_display}</h2>
+                            <svg class="tactic-line" viewBox="0 0 100 2" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="{selected_color}" stop-opacity="0.6" />
+                                        <stop offset="70%" stop-color="{selected_color}" stop-opacity="0.3" />
+                                        <stop offset="100%" stop-color="{selected_color}" stop-opacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                <rect width="100" height="2" fill="url(#lineGrad)" />
+                            </svg>
+        
+                            <div class="p-sub-bar">
+                                <div class="meta-item">
+                                    <div class="logo-shape">{'<img class="club-crest-small" src="'+logo_base64+'" />' if logo_base64 else ''}</div>
+                                    <span class="data-val">{r1.get('League', 'N/A')}</span>
+                                </div>
+                                <span class="pipe-divider">|</span>
+                                <div class="meta-item">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.38 3.46L16 2a4 4 0 0 0-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l1.08 5.4A2 2 0 0 0 5.3 12.5H7v7a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-7h1.7a2 2 0 0 0 1.94-1.41l1.08-5.4a2 2 0 0 0-1.34-2.23z"/></svg>
+                                    <span class="data-val">{r1.get('Pos.', 'N/A')}</span>
+                                </div>
+                                <span class="pipe-divider">|</span>
+                                <div class="meta-item">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    <span class="data-val">{int(r1.get('total mins played', 0)) if r1.get('total mins played') else 0} MIN.</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="colorPicker">Choose color</label>
-                    <input type="color" id="colorPicker" value="#00FFD5" onchange="fetchPizza()">
-                </div>
-            </div>
-            <div class="main-content">
-                <div id="chart-container">
-                    <p style="color: #64748b; text-align: center;">Vælg mindst 3 metrics i dropdown-menuen for at bygge dit pizza-diagram...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3. Scatter Plot Side -->
-        <div id="page-scatter" class="page-content">
-            <div class="sidebar">
-                <h2>Scatter Setup</h2>
-                <p style="color: #94a3b8; font-size: 13px;">Her kommer kontrollerne til dit scatter plot (f.eks. x-akse og y-akse valg).</p>
-            </div>
-            <div class="main-content">
-                <div style="color: #64748b; text-align: center;">
-                    <h3>Scatter Plot Visualisering</h3>
-                    <p>Denne sektion er klar til at modtage dit interaktive Scatter Plot-diagram.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- 4. Global Placeholder Side -->
-        <div id="page-placeholder" class="page-content">
-            <div class="sidebar">
-                <h2 id="placeholder-sidebar-title">Modul Setup</h2>
-                <p style="color: #94a3b8; font-size: 13px;">Konfigurationsmulighederne indlæses dynamisk, når modulerne forbindes til serveren.</p>
-            </div>
-            <div class="main-content">
-                <div style="color: #64748b; text-align: center;">
-                    <h3 id="placeholder-main-title">Visningsmodul</h3>
-                    <p>Denne sektion er klargjort som en strukturel placeholder i dit interface-layout.</p>
-                </div>
-            </div>
-        </div>
-
-    </div>
-    <script>
-        let allMetrics = {};
-        let nuvaerendeSpillerNavn = "report";
-
-        function toggleMobileMenu(e) {
-            e.stopPropagation();
-            document.getElementById('hamburgerBtn').classList.toggle('open');
-            document.getElementById('navMenu').classList.toggle('open');
-        }
-
-        function switchPage(pageId) {
-            const targetPage = ['home', 'pizza', 'scatter'].includes(pageId) ? pageId : 'placeholder';
-            document.querySelectorAll('.nav-menu .nav-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
-
-            if (event && event.target) {
-                event.target.classList.add('active');
-                if(targetPage === 'placeholder') {
-                    const moduleName = event.target.innerText;
-                    document.getElementById('placeholder-sidebar-title').innerText = moduleName + " Setup";
-                    document.getElementById('placeholder-main-title').innerText = moduleName + " Visualisering";
-                }
-            }
-            document.getElementById(`page-${targetPage}`).classList.add('active');
-            
-            document.getElementById('hamburgerBtn').classList.remove('open');
-            document.getElementById('navMenu').classList.remove('open');
-
-            if (targetPage === 'pizza') { fetchPizza(); }
-        }
-
-        function toggleMetricDropdown(e) { e.stopPropagation(); document.getElementById('metricsWrapper').classList.toggle('show'); }
+                
+                <svg width="710" height="570" viewBox="0 0 710 570">
+                    <circle cx="{CX}" cy="{CY}" r="50" class="grid-circle" />
+                    <circle cx="{CX}" cy="{CY}" r="100" class="grid-circle" />
+                    <circle cx="{CX}" cy="{CY}" r="150" class="grid-circle" />
+                    <circle cx="{CX}" cy="{CY}" r="{MAX_R}" class="grid-circle" style="stroke: rgba(255, 255, 255, .08);" />
+                    {f'<image href="{logo_base64}" x="{CX-24}" y="{CY-24}" height="48" width="48"/>' if logo_base64 else ''}
+                    {pizza_slices} {grid_lines} {labels}
+                </svg>
         
-        window.addEventListener('click', () => { 
-            document.getElementById('metricsWrapper').classList.remove('show'); 
-            document.getElementById('hamburgerBtn').classList.remove('open');
-            document.getElementById('navMenu').classList.remove('open');
-        });
-        
-        document.getElementById('metricsWrapper').addEventListener('click', (e) => { e.stopPropagation(); });
-
-        document.addEventListener("DOMContentLoaded", () => {
-            fetch('/api/initial-data')
-                .then(res => res.json())
-                .then(data => {
-                    const playerSel = document.getElementById('playerSelect');
-                    const posSel = document.getElementById('posSelect');
-                    data.players.forEach(p => playerSel.add(new Option(p, p)));
-                    data.positions.forEach(pos => posSel.add(new Option(pos, pos)));
-                    allMetrics = data.metrics;
-                    buildMetricsCheckboxes();
-                })
-                .catch(err => {
-                    console.log("Kører standalone testmiljø. Genererer standardstruktur.");
-                    allMetrics = { 
-                        "Attacking": { "goals": "Mål pr. 90", "shots": "Skud på mål" }, 
-                        "Passing": { "kp": "Key Passes", "passes": "Afleveringer" }, 
-                        "Defending": { "tackles": "Tacklinger", "interc": "Interceptions" } 
-                    };
-                    buildMetricsCheckboxes();
-                });
-        });
-
-        function buildMetricsCheckboxes() {
-            const wrapper = document.getElementById('metricsWrapper');
-            wrapper.innerHTML = "";
-
-            for (const [category, metricsObj] of Object.entries(allMetrics)) {
-                const catLabel = document.createElement('div');
-                catLabel.className = "metric-group-title";
-                catLabel.innerText = category;
-                wrapper.appendChild(catLabel);
-
-                let isFirstInMetricCategory = true;
-
-                for (const [key, displayName] of Object.entries(metricsObj)) {
-                    const item = document.createElement('div');
-                    item.className = "checkbox-item";
-                    
-                    const isCheckedStr = isFirstInMetricCategory ? "checked" : "";
-                    
-                    item.innerHTML = `
-                        <input type="checkbox" name="pizzaMetrics" value="${key}" id="chk-${key}" ${isCheckedStr} onchange="updateDropdownStatus(); fetchPizza();"> 
-                        <label for="chk-${key}" style="flex:1; cursor:pointer;">${displayName.replace('\n', ' ')}</label>
-                    `;
-                    wrapper.appendChild(item);
-                    isFirstInMetricCategory = false;
-                }
-            }
-            updateDropdownStatus();
-            fetchPizza(); 
-        }
-
-        function updateDropdownStatus() {
-            const checkedBoxes = document.querySelectorAll('input[name="pizzaMetrics"]:checked');
-            const trigger = document.getElementById('metricDropdownTrigger');
-            trigger.innerText = checkedBoxes.length === 0 ? "Vælg metrics..." : `${checkedBoxes.length} metrics valgt`;
-        }
-
-        function fetchPizza() {
-            const player = document.getElementById('playerSelect').value;
-            const position = document.getElementById('posSelect').value;
-            const color = document.getElementById('colorPicker').value;
-            const checkedBoxes = document.querySelectorAll('input[name="pizzaMetrics"]:checked');
-            const selectedMetrics = Array.from(checkedBoxes).map(cb => cb.value);
-
-            if (selectedMetrics.length < 3) {
-                document.getElementById('chart-container').innerHTML = '<p style="color: #64748b; text-align: center;">Vælg mindst 3 metrics i dropdown-menuen for at bygge dit pizza-diagram...</p>';
-                return;
-            }
-
-            fetch('/api/generate-pizza', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ player, position, color, metrics: selectedMetrics })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.html) {
-                    document.getElementById('chart-container').innerHTML = data.html;
-                    nuvaerendeSpillerNavn = data.player_name || "report";
-                }
-            }).catch(e => console.log("Afventer serversvar for generering."));
-        }
-
-        function downloadPNG() {
-            const el = document.getElementById("chart-only");
-            const title = document.querySelector('.p-nm'); 
-            if(title) { title.style.webkitTextFillColor = '#fff'; title.style.color = '#fff'; } 
+                <div class="chart-footer">{p1}'s percentile rank vs. {player_league} {selected_pos}s</div>
+                <div class="chart-footer-source">Generated via ://render.com</div>
+            </div>
             
-            html2canvas(el, { scale: 4, backgroundColor: "#0B1220", useCORS: true }).then(canvas => { 
-                if(title) title.style.webkitTextFillColor = '#fff'; 
-                const link = document.createElement("a"); 
-                link.download = "report_" + nuvaerendeSpillerNavn.toLowerCase().replace(/ /g, "_") + ".png"; 
-                link.href = canvas.toDataURL("image/png"); 
-                link.click(); 
-            }).catch(e => { if(title) title.style.webkitTextFillColor = '#fff'; console.error(e); }); 
-        }
-    </script>
-</body>
-</html>
+            <div class="download"><button onclick="downloadPNG()">Download as PNG</button></div>
+        </div>
+        """
+        return {"html": html_response, "player_name": p1_display}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
