@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 # 📁 VIGTIGT: Henter diagram-generatoren og filter-funktionen fra din pizza.py
-from backend.routers.pizza import vis_pizza_diagram, hent_filtre
+from routers.pizza import vis_pizza_diagram, hent_filtre
 
 app = FastAPI(title="PER 90 // CORE ENGINE API")
 
