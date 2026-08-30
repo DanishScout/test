@@ -1,3 +1,7 @@
+# ==========================================
+# SEKTION 1: GLOBALT FOR HELE APPEN
+# ==========================================
+
 import os
 import math
 import base64
@@ -5,20 +9,65 @@ from io import BytesIO
 import requests
 import pandas as pd
 from PIL import Image
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List
 
-app = FastAPI()
 
-# Find de præcise stier til dine CSV-datafiler i backend-mappen
+app = FastAPI(title="PER 90 - Fodbold Data App")
+
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV1_PATH = os.path.join(BASE_DIR, 'den1.csv')
 CSV2_PATH = os.path.join(BASE_DIR, 'den2.csv')
 FRONTEND_PATH = os.path.abspath(os.path.join(BASE_DIR, '..', 'frontend', 'index.html'))
 
-# Definition af dine metrics fra pizza.py
+def load_data():
+    """
+    Indlæser og kombinerer automatisk dine rå CSV-liga-datafiler.
+    Denne funktion deles på tværs af Pizza, Scatter og Table modulerne.
+    """
+    df1 = pd.read_csv(CSV1_PATH)
+    df2 = pd.read_csv(CSV2_PATH)
+    return pd.concat([df1, df2], ignore_index=True)
+
+
+@app.get("/", response_class=HTMLResponse)
+def get_index():
+    """
+    Hoved-endpoint der serverer din index.html fil direkte 
+    fra din frontend-mappe til browseren.
+    """
+    if not os.path.exists(FRONTEND_PATH):
+        raise HTTPException(status_code=404, detail="index.html blev ikke fundet i frontend mappen")
+    with open(FRONTEND_PATH, "r", encoding="utf-8") as f:
+        return f.read()
+
+@app.get("/api/initial-data")
+def get_initial_data():
+    """
+    Henter startdata til dine globale dropdown-menuer på frontend.
+    Her trækkes alle unikke spillere og positioner ud fra datafilerne.
+    """
+    try:
+        data = load_data()
+        players = sorted(data['Player Name'].dropna().unique())
+        pos_column = 'Pos.' if 'Pos.' in data.columns else ('Position' if 'Position' in data.columns else data.columns)
+        positions = sorted(data[pos_column].dropna().unique())
+        
+        # Vi sender AVAILABLE_METRICS med herfra, som nu hentes direkte nede fra pizzasekionen
+        return {"players": players, "positions": positions, "metrics": AVAILABLE_METRICS}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+        
+# ==========================================
+# SEKTION 2: KUN PIZZA DIAGARM
+# ==========================================
+pizza_router = APIRouter(prefix="/api/pizza", tags=["Pizza"])
+
+# --- Eksklusive dataopsætninger for pizzadiagrammet ---
 AVAILABLE_METRICS = {
     "Shooting": {
         "total goals_p90": "Goals",
@@ -43,44 +92,17 @@ AVAILABLE_METRICS = {
     },
 }
 
-# Fladgør strukturen til opslag af tekst-labels
 METRICS_MAPPING = {k: v for cat in AVAILABLE_METRICS.values() for k, v in cat.items()}
 
-def load_data():
-    """Indlæser og kombinerer dine specifikke liga-filer direkte"""
-    df1 = pd.read_csv(CSV1_PATH)
-    df2 = pd.read_csv(CSV2_PATH)
-    return pd.concat([df1, df2], ignore_index=True)
-
-# Datamodel til validering af POST-requests (Pizza setup)
 class PizzaRequest(BaseModel):
     player: str
     position: str
     metrics: List[str]
     color: str = '#00FFD5'
 
-@app.get("/", response_class=HTMLResponse)
-def get_index():
-    """Serverer din index.html fil direkte fra frontend-mappen"""
-    if not os.path.exists(FRONTEND_PATH):
-        raise HTTPException(status_code=404, detail="index.html blev ikke fundet i frontend mappen")
-    with open(FRONTEND_PATH, "r", encoding="utf-8") as f:
-        return f.read()
-@app.get("/api/initial-data")
-def get_initial_data():
-    """Henter listen over unikke spillere og positioner til menuerne"""
-    try:
-        data = load_data()
-        players = sorted(data['Player Name'].dropna().unique())
-        pos_column = 'Pos.' if 'Pos.' in data.columns else ('Position' if 'Position' in data.columns else data.columns)
-        positions = sorted(data[pos_column].dropna().unique())
-        return {"players": players, "positions": positions, "metrics": AVAILABLE_METRICS}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/api/generate-pizza")
 def generate_pizza(req_data: PizzaRequest):
-    """Modtager parametre og genererer dit præcise HTML/SVG-diagram"""
+    """Genererer dit SVG-pizzadiagram baseret på percentil-beregninger inden for ligaen."""
     try:
         p1 = req_data.player
         selected_pos = req_data.position
@@ -96,20 +118,17 @@ def generate_pizza(req_data: PizzaRequest):
         player_row = data[data['Player Name'] == p1].iloc[0]
         player_league = player_row['League']
         
-        # Filtrer sammenligningsgruppen: samme liga OG samme valgte position
         filter_mask = (data['League'] == player_league) & (data[pos_column] == selected_pos)
         comparison_df = data[filter_mask].copy()
         
         if p1 not in comparison_df['Player Name'].values:
             comparison_df = pd.concat([comparison_df, data[data['Player Name'] == p1]], ignore_index=True)
         
-        # Beregn percentil-ranks (0-100) dynamisk inden for gruppen
         for k in sel_keys:
             comparison_df[f'{k}_percentile'] = comparison_df[k].rank(pct=True, method='max') * 100.0
 
         r1 = comparison_df[comparison_df['Player Name'] == p1].iloc[0]
         
-        # Hent klublogo via Opta API
         team_id = r1['contestantId']
         logo_base64 = ""
         try:
@@ -124,7 +143,6 @@ def generate_pizza(req_data: PizzaRequest):
         except Exception:
             pass
 
-        # Matematiske parametre for dit pizza-diagram
         CX, CY, MAX_R, N = 355, 252, 200, len(sel_keys)
         p1_display = p1 if len(p1) <= 35 else p1[:32] + "..."
         slice_width = 360.0 / N
@@ -140,7 +158,6 @@ def generate_pizza(req_data: PizzaRequest):
 
         pizza_slices, grid_lines, labels = "", "", ""
         
-        # Generer diagramstykker, akser og dine tekst-labels
         for i, k in enumerate(sel_keys):
             start_ang = i * slice_width
             end_ang = start_ang + slice_width
@@ -170,62 +187,30 @@ def generate_pizza(req_data: PizzaRequest):
             label_text = f'<text class="ax-lbl" text-anchor="middle">{tspan_html}</text>'
             badge_y_offset = 20 if len(metric_lines) > 1 else 8
             
-            # Det præcise skjold-badge-look under tekst-akserne
             val_badge = f"""
             <g transform="translate(-13, {badge_y_offset})">
                 <path d="M 0 0 L 26 0 L 26 10 C 26 15, 13 20, 13 20 C 13 20, 0 15, 0 10 Z" class="bg-b" />
                 <text class="tx-b" x="13" y="11" text-anchor="middle">{int(val)}</text>
             </g>"""
             labels += f'<g transform="translate({tx:.1f}, {ty:.1f})">{label_text}{val_badge}</g>\n'
-        # Opbygning af den endelige HTML-streng med din præcise CSS-indpakning og download-skripter
-        html_response = f"""
+
+        logo_html = f'<img class="club-crest-small" src="{logo_base64}" />' if logo_base64 else ''
+        image_html = f'<image href="{logo_base64}" x="{CX-24}" y="{CY-24}" height="48" width="48"/>' if logo_base64 else ''
+        league_val = str(r1.get('League', 'N/A'))
+        pos_val = str(r1.get('Pos.', 'N/A'))
+        
+        mins_raw = r1.get('total mins played', 0)
+        mins_val = "0" if pd.isna(mins_raw) else str(int(mins_raw))
+        
+        html_pizza = f"""
         <div class="wrap" id="report">
             <div class="chart-container" id="chart-only">
                 <style>
-                    /* Her tvinges den nye test-font igennem uafhængigt af lokale downloads */
                     @import url('https://googleapis.com');
-                    
-                    .wrap {{
-                        width: 100%;
-                        max-width: 710px;
-                        margin: auto;
-                        background: #0B1220;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                    }}
-                    .chart-container {{ 
-                        position: relative; 
-                        padding: 15px 15px 35px; 
-                        border-radius: 24px; 
-                        width: 100%; 
-                        max-width: 710px; 
-                        border: 1px solid rgba(0,240,255,.08); 
-                        box-shadow: 0 30px 60px -15px #000, inset 0 1px 0 rgba(255,255,255,.05); 
-                        box-sizing: border-box; 
-                        opacity: .85; 
-                        overflow: hidden;
-                        background: #0B1220;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        font-family: 'Gabarito', system-ui, sans-serif;
-                        color: #e5e7eb;
-                    }}
+                    .wrap {{ width: 100%; max-width: 710px; margin: auto; background: #0B1220; display: flex; flex-direction: column; align-items: center; }}
+                    .chart-container {{ position: relative; padding: 15px 15px 35px; border-radius: 24px; width: 100%; max-width: 710px; border: 1px solid rgba(0,240,255,.08); box-shadow: 0 30px 60px -15px #000, inset 0 1px 0 rgba(255,255,255,.05); box-sizing: border-box; opacity: .85; overflow: hidden; background: #0B1220; display: flex; flex-direction: column; align-items: center; font-family: 'Gabarito', system-ui, sans-serif; color: #e5e7eb; }}
                     .chart-container::before {{ content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(#0f172a, #020617); z-index: 0; border-radius: 24px; }}
-                    .header-card {{ 
-                        position: relative; 
-                        z-index: 2; 
-                        width: 100%; 
-                        max-width: 575px; 
-                        margin: 15px auto 25px; 
-                        padding: 20px 25px; 
-                        background: transparent; 
-                        border: 1px solid rgba(0, 240, 255, 0.08); 
-                        border-radius: 16px; 
-                        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); 
-                        box-sizing: border-box; 
-                    }}
+                    .header-card {{ position: relative; z-index: 2; width: 100%; max-width: 575px; margin: 15px auto 25px; padding: 20px 25px; background: transparent; border: 1px solid rgba(0, 240, 255, 0.08); border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); box-sizing: border-box; }}
                     .h-cnt {{ display: flex; gap: 20px; width: 100%; box-sizing: border-box; }}
                     .p-meta-right {{ display: flex; flex-direction: column; flex-grow: 1; }}
                     .p-nm {{ font-size: 27px; font-weight: 700; margin: 0 0 10px; text-transform: uppercase; letter-spacing: -.5px; color: #fff; }}
@@ -251,7 +236,6 @@ def generate_pizza(req_data: PizzaRequest):
                     .download button {{ padding: 8px 14px; border-radius: 8px; border: 1px solid #1f2a37; background: #0f172a; color: #e5e7eb; cursor: pointer; font-size: 13px; font-weight: 700; transition: background 0.2s; }}
                     .download button:hover {{ background: #1e293b; }}
                 </style>
-        
                 <div class="header-card">
                     <div class="h-cnt">
                         <div class="p-meta-right">
@@ -266,42 +250,74 @@ def generate_pizza(req_data: PizzaRequest):
                                 </defs>
                                 <rect width="100" height="2" fill="url(#lineGrad)" />
                             </svg>
-        
                             <div class="p-sub-bar">
                                 <div class="meta-item">
-                                    <div class="logo-shape">{f'<img class="club-crest-small" src="{logo_base64}" />' if logo_base64 else ''}</div>
-                                    <span class="data-val">{r1.get('League', 'N/A')}</span>
+                                    <div class="logo-shape">{logo_html}</div>
+                                    <span class="data-val">{league_val}</span>
                                 </div>
                                 <span class="pipe-divider">|</span>
                                 <div class="meta-item">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.38 3.46L16 2a4 4 0 0 0-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l1.08 5.4A2 2 0 0 0 5.3 12.5H7v7a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-7h1.7a2 2 0 0 0 1.94-1.41l1.08-5.4a2 2 0 0 0-1.34-2.23z"/></svg>
-                                    <span class="data-val">{r1.get('Pos.', 'N/A')}</span>
+                                    <span class="data-val">{pos_val}</span>
                                 </div>
                                 <span class="pipe-divider">|</span>
                                 <div class="meta-item">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                    <span class="data-val">{pi if (pi := r1.get('total mins played', 0)) and not pd.isna(pi) else 0} MIN.</span>
+                                    <span class="data-val">{mins_val} MIN.</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
                 <svg width="710" height="570" viewBox="0 0 710 570">
                     <circle cx="{CX}" cy="{CY}" r="50" class="grid-circle" />
                     <circle cx="{CX}" cy ="100" class="grid-circle" />
                     <circle cx="{CX}" cy="{CY}" r="150" class="grid-circle" />
                     <circle cx="{CX}" cy="{CY}" r="{MAX_R}" class="grid-circle" style="stroke: rgba(255, 255, 255, .08);" />
-                    {f'<image href="{logo_base64}" x="{CX-24}" y="{CY-24}" height="48" width="48"/>' if logo_base64 else ''}
+                    {image_html}
                     {pizza_slices} {grid_lines} {labels}
                 </svg>
-        
                 <div class="chart-footer">{p1}'s percentile rank vs. {player_league} {selected_pos}s</div>
                 <div class="chart-footer-source">Generated via Render</div>
             </div>
             <div class="download"><button onclick="downloadPNG()">Download as PNG</button></div>
         </div>
         """
-        return {"html": html_response, "player_name": p1_display}
+        return {"html": html_pizza, "player_name": p1_display}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==========================================
+# SEKTION 3: ANDET
+# ==========================================
+scatter_router = APIRouter(prefix="/api/scatter", tags=["Scatter"])
+
+@scatter_router.get("/data")
+def get_scatter_data():
+    return {"status": "Placeholder", "module": "Scatter Plot"}
+
+# ==========================================
+# SEKTION 8: TABLES MODUL (PLACEHOLDER)
+# ==========================================
+table_router = APIRouter(prefix="/api/table", tags=["Table"])
+
+@table_router.get("/data")
+def get_table_data():
+    return {"status": "Placeholder", "module": "Tables"}
+
+# ==========================================
+# SEKTION 9: MATCH REPORTS MODUL (PLACEHOLDER)
+# ==========================================
+report_router = APIRouter(prefix="/api/reports", tags=["Reports"])
+
+@report_router.get("/data")
+def get_report_data():
+    return {"status": "Placeholder", "module": "Match Reports"}
+
+# ==========================================
+# SEKTION 10: AUTOMATISK ROUTER REGISTRERING
+# ==========================================
+app.include_router(pizza_router)
+app.include_router(scatter_router)
+app.include_router(table_router)
+app.include_router(report_router)
