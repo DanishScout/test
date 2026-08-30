@@ -1,321 +1,231 @@
-import math, requests, base64
-from io import BytesIO
-from PIL import Image
+import os
+import math
+import base64
+import requests
 import pandas as pd
-from fastapi import APIRouter, Query
-from fastapi.responses import HTMLResponse
+from io import BytesIO
 
-router = APIRouter()
+# 📁 Indlæs data globalt ved app-opstart. 
+# Den søger efter filerne i rodmappen eller backend-mappen afhængigt af hvor uvicorn startes.
+try:
+    sti_aut = "aut1.csv" if os.path.exists("aut1.csv") else "backend/aut1.csv"
+    sti_tur = "tur1.csv" if os.path.exists("tur1.csv") else "backend/tur1.csv"
+    
+    df1 = pd.read_csv(sti_aut)
+    df2 = pd.read_csv(sti_tur)
+    DATA = pd.concat([df1, df2], ignore_index=True)
+except Exception:
+    DATA = pd.DataFrame()
 
-def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str], poss: list[str], defend: list[str], color: str):
-    try:
-        # 1. Indlæs og kombiner dine to CSV-filer
-        df1, df2 = pd.read_csv('den1.csv'), pd.read_csv('tur1.csv')
-        data = pd.concat([df1, df2], ignore_index=True)
-        
-        available_metrics = {
-            "Shooting": {"total goals_p90": "Goals", "xG_p90": "npxG"},
-            "Passing": {"total assists_p90": "Assists", "xA_p90": "xA"},
-            "Possession": {"total won contest_p90": "Successful Dribbles", "total contest_p90": "Dribble Attempts"},
-            "Defending": {"tackle_success_pct_p90": "Tackles Won %", "aerial_success_pct_p90": "Aerials Won %"},
-        }
-        METRICS = {k: v for cat in available_metrics.values() for k, v in cat.items()}
-        
-        p_list = sorted(data['Player Name'].dropna().unique())
-        pos_column = 'Pos.' if 'Pos.' in data.columns else ('Position' if 'Position' in data.columns else data.columns)
-        pos_list = sorted(data[pos_column].dropna().unique())
-        
-        if not player and p_list: player = p_list[0]
-        p_row = data[data['Player Name'] == player].iloc[0]
-        if not pos: pos = p_row[pos_column]
-        
-        # Saml alle valgte metrics fra tjekboksene
-        sel_keys = shoot + p_ass + poss + defend
-        if not sel_keys:
-            sel_keys = ["total goals_p90", "total assists_p90", "total won contest_p90", "tackle_success_pct_p90"]
-            shoot, p_ass, poss, defend = ["total goals_p90"], ["total assists_p90"], ["total won contest_p90"], ["tackle_success_pct_p90"]
+# Mappings til pæne visuelle navne med linjeskift i SVG-diagrammet
+METRICS_LABELS = {
+    "total goals_p90": "Goals", 
+    "xG_p90": "npxG",
+    "total assists_p90": "Assists", 
+    "xA_p90": "xA",
+    "total won contest_p90": "Successful\nDribbles", 
+    "total contest_p90": "Dribble\nAttempts",
+    "tackle_success_pct_p90": "Tackles\nWon %", 
+    "aerial_success_pct_p90": "Aerials\nWon %"
+}
 
-        # 2. Filtrer sammenligningsgruppen dynamisk
-        comp_df = data[(data['League'] == p_row['League']) & (data[pos_column] == pos)].copy()
-        if player not in comp_df['Player Name'].values:
-            comp_df = pd.concat([comp_df, data[data['Player Name'] == player]], ignore_index=True)
-            
-        # 3. Beregn percentiler for ALLE valgte metrics
-        for k in sel_keys:
+def get_slice_path(cx, cy, r, start_angle, end_angle):
+    """Beregner den præcise SVG-sti (path) til en enkelt lagkageskive."""
+    start_rad = math.radians(start_angle - 90)
+    end_rad = math.radians(end_angle - 90)
+    x1 = cx + r * math.cos(start_rad)
+    y1 = cy + r * math.sin(start_rad)
+    x2 = cx + r * math.cos(end_rad)
+    y2 = cy + r * math.sin(end_rad)
+    return f"M {cx} {cy} L {x1} {y1} A {r} {r} 0 0 1 {x2} {y2} Z"
+def vis_pizza_diagram(player: str, pos: str, shoot: list[str], p_ass: list[str], poss: list[str], defend: list[str], color: str = "#00FFD5"):
+    if DATA.empty:
+        return {"html": "<p style='color:#ef4444;text-align:center;'>Fejl: Kunne ikke indlæse datafiler (aut1.csv / tur1.csv).</p>", "player_slug": "error"}
+        
+    # Saml alle valgte metrikker fra query-arrays
+    sel_keys = []
+    if shoot: sel_keys.extend(shoot)
+    if p_ass: sel_keys.extend(p_ass)
+    if poss: sel_keys.extend(poss)
+    if defend: sel_keys.extend(defend)
+    
+    if len(sel_keys) < 3:
+        return {"html": "<p style='color:#f59e0b;text-align:center;padding:20px;'>Vælg mindst 3 metrikker i alt for at generere pizzadiagrammet.</p>", "player_slug": "unknown"}
+        
+    # Find spilleren i datagrundlaget
+    if player not in DATA['Player Name'].values:
+        return {"html": f"<p style='color:#ef4444;text-align:center;padding:20px;'>Spilleren '{player}' blev ikke fundet i systemet.</p>", "player_slug": "not_found"}
+        
+    pos_column = 'Pos.' if 'Pos.' in DATA.columns else ('Position' if 'Position' in DATA.columns else DATA.columns)
+    player_row = DATA[DATA['Player Name'] == player].iloc[0]
+    player_league = player_row.get('League', 'N/A')
+    
+    # Hvis en specifik sammenligningsposition ikke er valgt, bruges spillerens egen
+    selected_pos = pos if pos else player_row[pos_column]
+    
+    # Filtrer sammenligningsgruppen ud fra Liga og Position
+    comp_df = DATA[(DATA['League'] == player_league) & (DATA[pos_column] == selected_pos)].copy()
+    
+    # Sikr at spilleren selv er med i referencegruppen til percentil-beregningen
+    if player not in comp_df['Player Name'].values:
+        comp_df = pd.concat([comp_df, DATA[DATA['Player Name'] == player]], ignore_index=True)
+        
+    # Beregn percentil-rangering live for de valgte metrikker
+    p_values = {}
+    for k in sel_keys:
+        if k in comp_df.columns:
             comp_df[f'{k}_pct'] = comp_df[k].rank(pct=True, method='max') * 100.0
-            
-        r1 = comp_df[comp_df['Player Name'] == player].iloc[0]
-        
-        # 4. Hent holdets logo via Opta API
+            p_values[k] = float(comp_df[comp_df['Player Name'] == player][f'{k}_pct'].iloc[0])
+        else:
+            p_values[k] = 0.0
+
+    # Hent Opta holdslogo live i Base64 via team_id / contestantId
+    team_id = player_row.get('contestantId', '')
+    logo_base64 = "data:image/svg+xml;utf8,<svg xmlns='http://w3.org' viewBox='0 0 24 24' fill='%2300FFD5'><circle cx='12' cy='12' r='10'/></svg>"
+    if team_id:
         try:
-            logo_url = f"https://opta.net{r1['contestantId']}"
-            img_b = base64.b64encode(BytesIO(requests.get(logo_url, timeout=3).content).getvalue()).decode()
-            logo_html = f'<img src="data:image/png;base64,{img_b}" style="width:22px;height:22px;object-fit:contain;"/>'
-        except:
-            logo_html = ""
+            url = f'https://opta.net{team_id}'
+            res = requests.get(url, timeout=2)
+            if res.status_code == 200:
+                logo_base64 = f"data:image/png;base64,{base64.b64encode(BytesIO(res.content).getvalue()).decode()}"
+        except Exception:
+            pass
+
+    CX, CY, MAX_R = 355, 310, 200
+    N = len(sel_keys)
+    slice_width = 360.0 / N
+    p1_display = player if len(player) <= 35 else player[:32] + "..."
+    
+    pizza_slices, grid_lines, labels = "", "", ""
+    
+    for i, k in enumerate(sel_keys):
+        start_ang = i * slice_width
+        end_ang = start_ang + slice_width
+        mid_ang = start_ang + (slice_width / 2.0)
         
-        # 5. Avanceret Matematik til SVG Pizza-diagrammet
-        CX, CY, MAX_R, N = 355, 252, 200, len(sel_keys)
-        pizza_slices, grid_lines, labels = "", "", ""
-        width = 360.0 / N
+        # Hent percentil og find radius
+        pct_val = max(0.0, min(p_values.get(k, 0.0), 100.0))
+        slice_r = (pct_val / 100.0) * MAX_R
         
-        for i, k in enumerate(sel_keys):
-            start_ang, end_ang = i * width, (i + 1) * width
-            mid_ang = start_ang + (width / 2.0)
-            val = max(0.0, min(float(r1.get(f'{k}_pct', 0)), 100.0))
-            r = (val / 100.0) * MAX_R
+        # Generer lagkageskive
+        if slice_r > 0:
+            pizza_slices += f'<path d="{get_slice_path(CX, CY, slice_r, start_ang, end_ang)}" class="slice-b" />\n'
             
-            r_start, r_end = math.radians(start_ang - 90), math.radians(end_ang - 90)
-            if r > 0:
-                pizza_slices += f'<path d="M {CX} {CY} L {CX + r * math.cos(r_start)} {CY + r * math.sin(r_start)} A {r} {r} 0 0 1 {CX + r * math.cos(r_end)} {CY + r * math.sin(r_end)} Z" class="slice-b" />\n'
-            grid_lines += f'<line class="grid-line" x1="{CX}" y1="{CY}" x2="{CX + MAX_R * math.cos(r_start)}" y2="{CY + MAX_R * math.sin(r_start)}" />\n'
-            
-            r_mid = math.radians(mid_ang - 90)
-            tx, ty = CX + (MAX_R + 42) * math.cos(r_mid), CY + (MAX_R + 42) * math.sin(r_mid)
-            m_lines = METRICS[k].split('\n')
-            tspan_html = "".join([f'<tspan x="0" dy="{"-4" if idx==0 else "1.1em"}">{line}</tspan>' for idx, line in enumerate(m_lines)])
-            labels += f'<g transform="translate({tx:.1f},{ty:.1f})"><text class="ax-lbl" text-anchor="middle">{tspan_html}</text><g transform="translate(-13, {20 if len(m_lines) > 1 else 8})"><rect class="bg-b" width="26" height="16" rx="4"/><text class="tx-b" x="13" y="12" text-anchor="middle">{int(val)}</text></g></g>\n'
+        # Generer adskillelseslinje
+        rad_line = math.radians(start_ang - 90)
+        lx = CX + MAX_R * math.cos(rad_line)
+        ly = CY + MAX_R * math.sin(rad_line)
+        grid_lines += f'<line class="grid-line" x1="{CX}" y1="{CY}" x2="{lx:.1f}" y2="{ly:.1f}" />\n'
+        
+        # Beregn placering til ydre tekst-labels
+        rad_mid = math.radians(mid_ang - 90)
+        tx = CX + (MAX_R + 42) * math.cos(rad_mid)
+        ty = CY + (MAX_R + 42) * math.sin(rad_mid)
+        
+        # Split metriknavnet op ved linjeskift for pæn formatering i SVG
+        metric_display = METRICS_LABELS.get(k, k)
+        metric_lines = metric_display.split('\n')
+        tspan_html = "".join([f'<tspan x="0" dy="{ "0" if idx == 0 else "1.2em" }">{line}</tspan>' for idx, line in enumerate(metric_lines)])
+        
+        label_text = f'<text class="ax-lbl" text-anchor="middle">{tspan_html}</text>'
+        badge_y = 22 if len(metric_lines) > 1 else 10
+        val_badge = f'<g transform="translate(-14, {badge_y})"><rect class="bg-b" width="28" height="16" rx="4"/><text class="tx-b" x="14" y="12" text-anchor="middle">{int(pct_val)}</text></g>'
+        
+        labels += f'<g transform="translate({tx:.1f}, {ty:.1f})">{label_text}{val_badge}</g>\n'
 
-        # 6. Dynamisk dropdown HTML-generering for spillere og positioner
-        p_opts = "".join([f'<option value="{p}" {"selected" if p == player else ""}>{p}</option>' for p in p_list])
-        pos_opts = "".join([f'<option value="{x}" {"selected" if x == pos else ""}>{x}</option>' for x in pos_list])
+    mins_played = int(player_row.get('total mins played', 0)) if pd.notna(player_row.get('total mins played')) else 0
 
-        # Generering af de nye tilpassede dropdowns med tjekbokse
-        def lav_multiselect(kategori: str, felt_navn: str, valgte_verdier: list):
-            html_indhold = f"""
-            <div class="custom-multiselect">
-                <div class="select-box" onclick="toggleDropdown('{felt_navn}')">
-                    <span id="label-{felt_navn}">Vælg metrics ({len(valgte_verdier)})</span>
-                    <span class="arrow">▼</span>
-                </div>
-                <div class="checkboxes" id="opts-{felt_navn}">
-            """
-            for k, v in available_metrics[kategori].items():
-                checked = "checked" if k in valgte_verdier else ""
-                html_indhold += f"""
-                    <label class="check-item">
-                        <input type="checkbox" name="{felt_navn}" value="{k}" class="live-input" {checked}>
-                        <span class="custom-box"></span>
-                        {v}
-                    </label>
-                """
-            html_indhold += "</div></div>"
-            return html_indhold
-
-        shoot_html = lav_multiselect("Shooting", "shoot", shoot)
-        pass_html = lav_multiselect("Passing", "p_ass", p_ass)
-        poss_html = lav_multiselect("Possession", "poss", poss)
-        def_html = lav_multiselect("Defending", "defend", defend)
-
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>PER 90 - Live Pizza Diagram</title>
-            <link href="https://googleapis.com" rel="stylesheet">
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-            <style>
-                body {{ margin: 0; font-family: 'Gabarito', sans-serif; background-color: #070B13; color: #e5e7eb; display: flex; min-height: 100vh; max-width: 100vw; overflow-x: hidden; }}
-                aside {{ width: 260px; min-width: 260px; background: #0B1220; border-right: 1px solid rgba(255, 255, 255, 0.05); padding: 30px 20px; display: flex; flex-direction: column; box-sizing: border-box; flex-shrink: 0; }}
-                .logo {{ font-size: 22px; font-weight: 900; color: #00FFD5; margin-bottom: 40px; }}
-                nav {{ display: flex; flex-direction: column; gap: 10px; }}
-                nav a {{ color: #94a3b8; text-decoration: none; padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; }}
-                nav a:hover, nav a.active {{ background: rgba(0, 255, 213, 0.1); color: #00FFD5; }}
-                main {{
-                    flex-grow: 1;
-                    padding: 40px;
-                    display: flex; 
-                    gap: 30px;
-                    /* ÆNDRET FRA 'start' TIL 'stretch' - dette tvinger boksene til samme højde */
-                    align-items: stretch; 
-                    width: calc(100% - 260px);
-                    max-width: 100%;
-                    box-sizing: border-box;
-                    }}
-
-                /* KONTROLPANEL (VENSTRE SIDE INDE I MAIN) */
-                .control-panel {{
-                    width: 250px;
-                    min-width: 250px;
-                    background: #0B1220; 
-                    border: 1px solid rgba(255, 255, 255, 0.04); 
-                    padding: 22px; 
-                    border-radius: 16px; 
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-                    box-sizing: border-box;
-                    
-                    /* TILFØJ DISSE TO LINJER: */
-                    display: flex;
-                    flex-direction: column;
-                }}
-
-                .form-group {{ margin-bottom: 16px; position: relative; }}
-                label.form-title {{ display: block; font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }}
-                
-                select, input[type="color"] {{ width: 100%; background: #070B13; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; font-family: inherit; box-sizing: border-box; outline: none; transition: border 0.2s; }}
-                select:focus {{ border: 1px solid #00FFD5; }}
-                
-                /* DE NYE DROPDOWN MENUER MED FLUEBEN */
-                .custom-multiselect {{ position: relative; width: 100%; }}
-                .select-box {{ display: flex; justify-content: space-between; align-items: center; background: #070B13; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; cursor: pointer; user-select: none; box-sizing: border-box; }}
-                .select-box:hover {{ border-color: rgba(0, 255, 213, 0.5); }}
-                .select-box .arrow {{ font-size: 9px; color: #64748b; transition: transform 0.2s; }}
-                
-                .checkboxes {{ display: none; position: absolute; top: 100%; left: 0; right: 0; background: #070B13; border: 1px solid rgba(0, 255, 213, 0.3); border-top: none; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 10; padding: 4px; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }}
-                .custom-multiselect.open .checkboxes {{ display: block; }}
-                .custom-multiselect.open .select-box {{ border-radius: 8px 8px 0 0; border-color: #00FFD5; }}
-                .custom-multiselect.open .arrow {{ transform: rotate(180deg); color: #00FFD5; }}
-                
-                .check-item {{ display: flex; align-items: center; padding: 8px 10px; color: #e5e7eb; font-size: 13px; cursor: pointer; border-radius: 5px; margin-bottom: 2px; transition: background 0.15s; user-select: none; }}
-                .check-item:hover {{ background: rgba(255, 255, 255, 0.04); }}
-                .check-item input {{ display: none; }}
-                
-                /* DE VISUELLE FLUEBENSBOKSE */
-                .custom-box {{ width: 15px; height: 15px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; margin-right: 10px; display: inline-block; position: relative; background: #0B1220; flex-shrink: 0; }}
-                .check-item input:checked + .custom-box {{ background: #00FFD5; border-color: #00FFD5; }}
-                .check-item input:checked + .custom-box::after {{ content: '✓'; position: absolute; color: #070B13; font-size: 11px; font-weight: 900; top: 50%; left: 50%; transform: translate(-50%, -50%); }}
-                
-                .chart-container {{ padding: 25px; border-radius: 24px; background: #0B1220; border: 1px solid rgba(0,240,255,.08); display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 680px; box-sizing: border-box; box-shadow: 0 20px 50px rgba(0,0,0,0.6); min-width: 0; }}
-                .header-card {{ width: 100%; max-width: 100%; margin-bottom: 20px; border: 1px solid rgba(0, 240, 255, 0.08); border-radius: 16px; padding: 15px 20px; background: rgba(7, 11, 19, 0.5); box-sizing: border-box; }}
-                .p-nm {{ font-size: 24px; font-weight: 900; margin: 0 0 5px; text-transform: uppercase; color: #fff; letter-spacing: -0.5px; }}
-                .p-sub-bar {{ display: flex; align-items: center; gap: 12px; font-size: 12px; color: #94a3b8; font-weight: 700; }}
-                
-                svg {{ display: block; margin: auto; overflow: visible; width: 100%; height: auto; max-width: 710px; }}
-                .grid-circle {{ fill: none; stroke: rgba(255,255,255,.08); }}
-                .grid-line {{ stroke: rgba(255,255,255,.06); }}
-                .ax-lbl {{ font-size: 11px; fill: #94a3b8; font-weight: 700; }}
-                .slice-b {{ fill: {color}1a; stroke: {color}; stroke-width: 1.75; }}
-                .bg-b {{ fill: #0f172a; stroke: {color}cc; }}
-                .tx-b {{ fill: {color}; font-size: 11px; font-weight: 700; }}
-                .download button {{ padding: 9px 16px; border-radius: 6px; border: 1px solid #1f2a37; background: #0B1220; color: #e5e7eb; cursor: pointer; font-size: 12px; font-weight: 700; margin-top: 15px; transition: background 0.2s; }}
-                .download button:hover {{ background: #111a2e; }}
-            </style>
-        </head>
-        <body>
-            <aside>
-                <div class="logo">⚽ PER 90</div>
-                <nav>
-                    <a href="/">🏠 Startside</a>
-                    <a href="/pizza" class="active">📊 Pizza Diagram</a>
-                    <a href="#">🏆 Leaderboard</a>
-                    <a href="#">🏃 Spilleranalyse</a>
-                </nav>
-            </aside>
-            <main>
-                <div class="control-panel">
-                    <form id="pizzaForm" action="/pizza" method="get">
-                        <div class="form-group">
-                            <label class="form-title">Vælg Spiller</label>
-                            <select name="player" class="live-input">{p_opts}</select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-title">Sammenlignings-position</label>
-                            <select name="pos" class="live-input">{pos_opts}</select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-title">Shooting Metrics</label>
-                            {shoot_html}
-                        </div>
-                        <div class="form-group">
-                            <label class="form-title">Passing Metrics</label>
-                            {pass_html}
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-title">Possession Metrics</label>
-                            {poss_html}
-                        </div>
-                        <div class="form-group">
-                            <label class="form-title">Defending Metrics</label>
-                            {def_html}
-                        </div>
-                        <div class="form-group">
-                            <label class="form-title">Diagram Farve</label>
-                            <input type="color" name="color" class="live-input" value="{color}">
-                        </div>
-                    </form>
-                </div>
-
-                <div style="display:flex; flex-direction:column; align-items:center; flex-grow:1; min-width: 0; width: 100%;">
-                    <div class="chart-container" id="chart-only">
-                        <div class="header-card">
-                            <h2 class="p-nm">{player}</h2>
-                            <div class="p-sub-bar">
-                                <div style="display:flex; align-items:center; gap:6px;">{logo_html}<span>{p_row['League']}</span></div>
-                                <span>|</span><span>{pos}</span><span>|</span><span>{int(r1.get('total mins played', 0))} MIN.</span>
-                            </div>
-                        </div>
-                        <svg width="710" height="570" viewBox="0 0 710 570">
-                            <circle cx="{CX}" cy="{CY}" r="50" class="grid-circle" />
-                            <circle cx="{CX}" cy="{CY}" r="100" class="grid-circle" />
-                            <circle cx="{CX}" cy="{CY}" r="150" class="grid-circle" />
-                            <circle cx="{CX}" cy="{CY}" r="{MAX_R}" class="grid-circle" />
-                            {pizza_slices} {grid_lines} {labels}
-                        </svg>
+    # Præcis integration af din styling, HTML-struktur og kilde-footer
+    html_output = f"""
+    <div class="chart-container" id="chart-only">
+        <style>
+            @import url('https://googleapis.com');
+            .chart-container {{ 
+                position: relative; 
+                padding: 15px 15px 35px; 
+                border-radius: 24px; 
+                width: 100%; 
+                max-width: 710px; 
+                border: 1px solid rgba(0,240,255,.08); 
+                box-shadow: 0 30px 60px -15px #000, inset 0 1px 0 rgba(255,255,255,.05); 
+                box-sizing: border-box; 
+                opacity: .85; 
+                overflow: hidden;
+                background: #0B1220;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                font-family: 'Gabarito', sans-serif;
+                color: #e5e7eb;
+            }}
+            .chart-container::before {{ content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(#0f172a, #020617); z-index: 0; border-radius: 24px; }}
+            .header-card {{ position: relative; z-index: 2; width: 100%; max-width: 575px; margin: 15px auto 25px; padding: 20px 25px; background: transparent; border: 1px solid rgba(0, 240, 255, 0.08); border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); box-sizing: border-box; }}
+            .h-cnt {{ display: flex; gap: 20px; width: 100%; box-sizing: border-box; }}
+            .p-meta-right {{ display: flex; flex-direction: column; flex-grow: 1; }}
+            .p-nm {{ font-size: 27px; font-weight: 900; margin: 0 0 10px; text-transform: uppercase; letter-spacing: -.5px; color: #fff; -webkit-text-fill-color: #fff; }}
+            .tactic-line {{ width: 100%; height: 2px; margin-bottom: 12px; }}
+            .p-sub-bar {{ display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; flex-wrap: wrap; }}
+            .meta-item {{ display: flex; align-items: center; gap: 6px; color: #fff; }}
+            .meta-item svg {{ opacity: .6; fill: none; stroke: {color}; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; width: 15px; height: 15px; }}
+            .logo-shape {{ display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: rgba(0,240,255,0.1); border: 1px solid {color}; border-radius: 50%; padding: 2px; box-sizing: border-box; box-shadow: 0 0 6px rgba(0, 240, 255, 0.2); }}
+            .club-crest-small {{ width: 100%; height: 100%; object-fit: contain; }}
+            .data-val {{ color: #94a3b8; font-weight: 600; }}
+            .pipe-divider {{ color: rgba(0,240,255,.2); font-size: 14px; }}
+            svg {{ display: block; margin: auto; overflow: visible; max-width: 100%; height: auto; position: relative; z-index: 1; }}
+            .grid-circle {{ fill: none; stroke: rgba(255,255,255,.08); }}
+            .grid-line {{ stroke: rgba(255,255,255,.06); }}
+            .ax-lbl {{ font-size: 12px; fill: #94a3b8; font-weight: 700; letter-spacing: .5px; }}
+            .slice-b {{ fill: {color}1a; stroke: {color}; stroke-width: 1.75; stroke-linejoin: round; filter: drop-shadow(0 0 6px {color}26); }}
+            .bg-b {{ fill: #0f172a; stroke: {color}cc; }}
+            .tx-b {{ fill: {color}; font-size: 12px; font-weight: 700; }}
+            .chart-footer, .chart-footer-source {{ text-align: center; width: 100%; font-size: 11px; font-weight: 300; color: #e5e7eb; letter-spacing: .4px; padding: 0 40px; box-sizing: border-box; position: relative; z-index: 2; }}
+            .chart-footer {{ margin-top: 1px; opacity: 0.75; }}
+            .chart-footer-source {{ margin-top: 6px; opacity: 0.5; }}
+        </style>
+        
+        <div class="header-card">
+            <div class="h-cnt">
+                <div class="p-meta-right">
+                    <h2 class="p-nm">{p1_display}</h2>
+                    <svg class="tactic-line" viewBox="0 0 100 2" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="{color}" stop-opacity="0.6" />
+                                <stop offset="70%" stop-color="{color}" stop-opacity="0.3" />
+                                <stop offset="100%" stop-color="{color}" stop-opacity="0" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="100" height="2" fill="url(#lineGrad)" />
+                    </svg>
+                    <div class="p-sub-bar">
+                        <div class="meta-item"><div class="logo-shape"><img class="club-crest-small" src="{logo_base64}" /></div><span class="data-val">{player_league}</span></div>
+                        <span class="pipe-divider">|</span>
+                        <div class="meta-item"><svg viewBox="0 0 24 24"><path d="M20.38 3.46L16 2a4 4 0 0 0-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l1.08 5.4A2 2 0 0 0 5.3 12.5H7v7a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-7h1.7a2 2 0 0 0 1.94-1.41l1.08-5.4a2 2 0 0 0-1.34-2.23z"/></svg><span class="data-val">{selected_pos}</span></div>
+                        <span class="pipe-divider">|</span>
+                        <div class="meta-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="data-val">{mins_played} MIN.</span></div>
                     </div>
-                    <div class="download"><button onclick="downloadPNG()">Download som PNG</button></div>
                 </div>
-            </main>
-            
-            <script>
-            // Åben og luk dropdown-menuerne når der klikkes på dem
-            function toggleDropdown(feltNavn) {{
-                const el = document.getElementById('opts-' + feltNavn).parentElement;
-                const isOpen = el.classList.contains('open');
-                
-                // Luk alle andre dropdowns først, så de ikke overlapper
-                document.querySelectorAll('.custom-multiselect').forEach(dropdown => {{
-                    dropdown.classList.remove('open');
-                }});
-                
-                if (!isOpen) {{
-                    el.classList.add('open');
-                }}
-            }}
+            </div>
+        </div>
+        <svg width="710" height="620" viewBox="0 0 710 620">
+            <circle cx="{CX}" cy="{CY}" r="50" class="grid-circle" />
+            <circle cx="{CX}" cy="{CY}" r="100" class="grid-circle" />
+            <circle cx="{CX}" cy="{CY}" r="150" class="grid-circle" />
+            <circle cx="{CX}" cy="{CY}" r="{MAX_R}" class="grid-circle" style="stroke: rgba(255, 255, 255, .08);" />
+            {pizza_slices} {grid_lines} {labels}
+        </svg>
+        <div class="chart-footer">{player}'s percentile rank vs. {player_league} {selected_pos}s</div>
+        <div class="chart-footer-source">Generated via per-90.streamlit.app</div>
+    </div>
+    """
+    return {"html": html_output, "player_slug": player.lower().replace(" ", "_")}
 
-            // Luk dropdowns hvis brugeren klikker uden for menuerne
-            document.addEventListener('click', function(e) {{
-                if (!e.target.closest('.custom-multiselect')) {{
-                    document.querySelectorAll('.custom-multiselect').forEach(dropdown => {{
-                        dropdown.classList.remove('open');
-                    }});
-                }}
-            }});
-
-            // Auto-update: Indsend formularen når et input ændres eller der sættes/fjernes flueben
-            document.querySelectorAll('.live-input').forEach(input => {{
-                input.addEventListener('change', () => {{
-                    document.getElementById('pizzaForm').submit();
-                }});
-            }});
-
-            function downloadPNG() {{
-                html2canvas(document.getElementById("chart-only"), {{ scale: 4, backgroundColor: "#0B1220", useCORS: true }}).then(canvas => {{
-                    const link = document.createElement("a"); 
-                    link.download = "report_" + "{player}".toLowerCase().replace(/ /g, "_") + ".png";
-                    link.href = canvas.toDataURL("image/png"); 
-                    link.click();
-                }});
-            }}
-            </script>
-        </body>
-        </html>
-        """
-        return HTMLResponse(content=html, status_code=200)
-    except Exception as e:
-        return HTMLResponse(content=f"<html><body style='background:#070B13; color:white; padding:40px;'><h2>Fejl: {str(e)}</h2></body></html>", status_code=500)
-
-@router.get("/pizza", response_class=HTMLResponse)
-def get_pizza_page(
-    player: str = Query(None), 
-    pos: str = Query(None), 
-    shoot: list[str] = Query([]), 
-    p_ass: list[str] = Query([]), 
-    poss: list[str] = Query([]), 
-    defend: list[str] = Query([]), 
-    color: str = "#00FFD5"
-):
-    return vis_pizza_diagram(player, pos, shoot, p_ass, poss, defend, color)
-
-
-       
+def hent_filtre():
+    """Henter alle unikke spillere og positioner til frontend-menuerne."""
+    if DATA.empty: 
+        return {"players": [], "positions": []}
+    pos_col = 'Pos.' if 'Pos.' in DATA.columns else ('Position' if 'Position' in DATA.columns else DATA.columns)
+    return {
+        "players": sorted(DATA['Player Name'].dropna().unique().tolist()), 
+        "positions": sorted(DATA[pos_col].dropna().unique().tolist())
+    }
