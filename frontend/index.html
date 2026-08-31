@@ -6,234 +6,21 @@
     <!-- Rigtigt CDN link til html2canvas til PNG-eksport -->
     <script src="https://cloudflare.com"></script>
     
-    <style>
-        /* ==========================================================================
-           # GLOBALE STYLES (Anvendes på tværs af hele applikationen)
-           ========================================================================== */
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #060b13; 
-            color: #fff; 
-            margin: 0; 
-            padding: 0; 
-        }
-
-        .app-container {
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* Sidernes synlighed - styrer hvilken fane der vises */
-        .page-content { 
-            display: none; 
-        }
-        .page-content.active { 
-            display: flex; 
-            flex-direction: column; 
-            gap: 25px; 
-        }
-
-        /* Fælles setup-bar øverst på alle datassider (Uden top-eksportknap) */
-        .top-setup-bar { 
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            background: #111827; 
-            padding: 20px; 
-            border-radius: 16px; 
-            border: 1px solid rgba(255,255,255,0.05); 
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        /* Fælles centralt visningsområde med et flot, dæmpet grid-linjemønster */
-        .main-content { 
-            width: 100%;
-            background: #0b1220;
-            background-image: 
-                linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
-            background-size: 30px 30px;
-            background-position: center;
-            padding: 30px; 
-            border-radius: 16px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 650px; 
-            box-sizing: border-box;
-            border: 1px solid rgba(0, 240, 255, 0.04);
-        }
-
-        /* Fælles styling til formularer, inputfelter og dropdowns */
-        .form-group { 
-            margin-bottom: 0; 
-        }
-        
-        label { 
-            display: block; 
-            margin-bottom: 8px; 
-            font-weight: bold; 
-            font-size: 11px; 
-            color: #64748b; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-        }
-        
-        select, input[type="color"] { 
-            width: 100%; 
-            padding: 12px; 
-            background: #1f2937; 
-            border: 1px solid #374151; 
-            color: #fff; 
-            border-radius: 8px; 
-            font-size: 14px; 
-            box-sizing: border-box; 
-            height: 45px; 
-        }
-        
-        input[type="color"] { 
-            padding: 4px; 
-            cursor: pointer; 
-        }
-
-        /* ==========================================================================
-           # GLOBAL NAVIGATION & TOP HEADER
-           ========================================================================== */
-        .global-header {
-            background: #0b1220;
-            border-bottom: 1px solid rgba(0, 240, 255, 0.08);
-            padding: 15px 40px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 30px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        
-        .app-logo-text {
-            font-size: 20px;
-            font-weight: 900;
-            color: #fff;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-            user-select: none;
-        }
-        .logo-slash {
-            color: #ef4444;
-            text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
-            margin: 0 1px;
-        }
-        
-        .nav-menu {
-            display: flex;
-            gap: 4px;
-            overflow-x: auto;
-            white-space: nowrap;
-            flex: 1;
-            padding-bottom: 2px;
-        }
-        .nav-menu::-webkit-scrollbar { display: none; }
-        .nav-menu { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        .nav-btn {
-            background: transparent;
-            border: 1px solid transparent;
-            color: #94a3b8;
-            padding: 8px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 700;
-            font-size: 11px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            position: relative;
-        }
-        
-        .nav-btn:hover {
-            color: #fff;
-            background: rgba(0, 240, 255, 0.03);
-        }
-        
-        .nav-btn.active {
-            color: #00FFD5;
-            background: rgba(0, 240, 255, 0.06);
-            border-color: rgba(0, 240, 255, 0.12);
-        }
-        
-        .nav-btn::after {
-            content: '';
-            position: absolute;
-            bottom: 2px;
-            left: 50%;
-            width: 0;
-            height: 2px;
-            background: #00FFD5;
-            transition: all 0.25s ease;
-            transform: translateX(-50%);
-            border-radius: 2px;
-            opacity: 0;
-        }
-        .nav-btn:hover::after {
-            width: 40%;
-            opacity: 0.8;
-        }
-        .nav-btn.active::after { 
-            width: 0; 
-        }
-        /* ==========================================================================
-           # PIZZA CHART EXCLUSIVE STYLES
-           ========================================================================== */
-        .dropdown-select-box { 
-            position: relative; 
-            width: 100%; 
-        }
-        
-        .dropdown-trigger {
-            width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 45px;
-        }
-        .dropdown-trigger::after { content: '▼'; font-size: 10px; color: #64748b; }
-        
-        .dropdown-content {
-            display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 8px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0;
-        }
-        .dropdown-content.show { display: block; }
-        
-        .metric-group-title { 
-            font-size: 11px; color: #00FFD5; padding: 6px 12px 4px 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0, 240, 255, 0.02); 
-        }
-        
-        .checkbox-item { 
-            display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 13px; color: #e5e7eb; cursor: pointer; transition: background 0.15s ease; 
-        }
-        .checkbox-item:hover { background: #2d3748; }
-        .checkbox-item input { accent-color: #00FFD5; width: 16px; height: 16px; cursor: pointer; }
-        
-        #chart-container { width: 100%; display: flex; justify-content: center; flex-direction: column; align-items: center; }
-
-        /* ==========================================================================
-           # HOME SKÆRM EXCLUSIVE STYLES
-           ========================================================================== */
-        .home-card { 
-            background: #111827; border: 1px solid rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; text-align: center; width: 100%; max-width: 600px; margin: 50px auto; 
-        }
-    </style>
+    <!-- # LINK TIL STYLESHEET: Trækker alt dashboard-designet ind fra din eksterne style.css -->
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-    <!-- ==========================================================================
-       # GLOBAL NAVIGATION HEADER
-       ========================================================================== -->
+    <!-- Globale Top Header & Navigation (Radar Comparison rykket op efter Pizza Chart) -->
     <header class="global-header">
         <div class="app-logo-text">PER 9<span class="logo-slash">/</span>0</div>
         <nav class="nav-menu">
             <button class="nav-btn active" onclick="switchPage('home', event)">Home</button>
             <button class="nav-btn" onclick="switchPage('pizza', event)">Pizza Chart</button>
+            <!-- # NY PLACERING: Radar Comparison ligger nu lige efter Pizza Chart -->
+            <button class="nav-btn" onclick="switchPage('radar', event)">Radar comparison</button>
             <button class="nav-btn" onclick="switchPage('scatter', event)">Scatter Plot</button>
             <button class="nav-btn" onclick="switchPage('placeholder', event)">Player Stats</button>
-            <button class="nav-btn" onclick="switchPage('placeholder', event)">Radar comparison</button>
             <button class="nav-btn" onclick="switchPage('placeholder', event)">Table</button>
             <button class="nav-btn" onclick="switchPage('placeholder', event)">Stat filters</button>
             <button class="nav-btn" onclick="switchPage('placeholder', event)">Similarity score</button>
@@ -242,6 +29,7 @@
             <button class="nav-btn" onclick="switchPage('placeholder', event)">Match reports</button>
         </nav>
     </header>
+
 
     <div class="app-container">
         <!-- ==========================================================================
@@ -255,7 +43,7 @@
             </div>
         </div>
         <!-- ==========================================================================
-           # KATEGORI: PIZZA CHART Sektion
+           # KATEGORI: PIZZA CHART Sektion (Vandret Setup over diagrammet)
            ========================================================================== -->
         <div id="page-pizza" class="page-content">
             <div class="top-setup-bar">
@@ -287,6 +75,36 @@
         </div>
 
         <!-- ==========================================================================
+           # KATEGORI: RADAR COMPARISON Sektion (Vandret Setup over diagrammet)
+           ========================================================================== -->
+        <div id="page-radar" class="page-content">
+            <div class="top-setup-bar">
+                <div class="form-group">
+                    <label for="radarPlayer1Select">Select Player 1</label>
+                    <select id="radarPlayer1Select" onchange="fetchRadar()"></select>
+                </div>
+                <div class="form-group">
+                    <label for="radarPlayer2Select">Select Player 2</label>
+                    <select id="radarPlayer2Select" onchange="fetchRadar()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Radar Metrics Selection</label>
+                    <div class="dropdown-select-box">
+                        <div class="dropdown-trigger" id="radarMetricDropdownTrigger" onclick="toggleRadarMetricDropdown(event)">Vælg radar metrics...</div>
+                        <div class="dropdown-content" id="radarMetricsWrapper"></div>
+                    </div>
+                </div>
+                <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="export-btn" style="width: 100%;" onclick="downloadRadarPNG()">Eksportér PNG</button>
+                </div>
+            </div>
+            <div class="main-content">
+                <div id="radar-chart-container" style="width: 100%; display: flex; justify-content: center; flex-direction: column; align-items: center;">
+                    <p style="color: #64748b; text-align: center;">Vælg mindst 3 metrics i dropdown-menuen for at bygge dit radardiagram...</p>
+                </div>
+            </div>
+        </div>
+        <!-- ==========================================================================
            # KATEGORI: SCATTER PLOT Sektion
            ========================================================================== -->
         <div id="page-scatter" class="page-content">
@@ -313,7 +131,7 @@
         </div>
 
         <!-- ==========================================================================
-           # KATEGORI: GLOBAL PLACEHOLDER (For de resterende moduler)
+           # KATEGORI: GLOBAL PLACEHOLDER Sektion
            ========================================================================== -->
         <div id="page-placeholder" class="page-content">
             <div class="top-setup-bar">
@@ -331,176 +149,8 @@
         </div>
 
     </div> <!-- Slut på app-container -->
-    <!-- ==========================================================================
-       # JAVASCRIPT LOGIK
-       ========================================================================== -->
-    <script>
-        // Globale applikations-variabler
-        let allMetrics = {};
-        let nuvaerendeSpillerNavn = "report";
 
-        /* --------------------------------------------------------------------------
-           # GLOBALE NAVIGATION FUNKTIONER
-           -------------------------------------------------------------------------- */
-        function switchPage(pageId, e) {
-            const targetPage = ['home', 'pizza', 'scatter'].includes(pageId) ? pageId : 'placeholder';
-            document.querySelectorAll('.nav-menu .nav-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
-
-            if (e && e.target) {
-                e.target.classList.add('active');
-                if(targetPage === 'placeholder') {
-                    const moduleName = e.target.innerText;
-                    document.getElementById('placeholder-sidebar-title').innerText = moduleName + " Setup";
-                    document.getElementById('placeholder-main-title').innerText = moduleName + " Visualisering";
-                }
-            }
-            document.getElementById(`page-${targetPage}`).classList.add('active');
-            if (targetPage === 'pizza') { fetchPizza(); }
-        }
-
-        /* --------------------------------------------------------------------------
-           # DATA INITIALISERING (Henter kun ægte data fra backenden)
-           -------------------------------------------------------------------------- */
-        document.addEventListener("DOMContentLoaded", () => {
-            fetch('/api/initial-data')
-                .then(res => {
-                    if (!res.ok) throw new Error(`Kunne ikke hente startdata: ${res.status}`);
-                    return res.json();
-                })
-                .then(data => {
-                    const playerSel = document.getElementById('playerSelect');
-                    const posSel = document.getElementById('posSelect');
-                    
-                    if (playerSel && posSel) {
-                        data.players.forEach(p => playerSel.add(new Option(p, p)));
-                        data.positions.forEach(pos => posSel.add(new Option(pos, pos)));
-                    }
-                    
-                    allMetrics = data.metrics;
-                    buildMetricsCheckboxes();
-                })
-                .catch(err => {
-                    console.error("Kritisk fejl under initialisering:", err);
-                    document.getElementById('chart-container').innerHTML = 
-                        '<p style="color: #ef4444; text-align: center;">Kunne ikke indlæse data fra serveren. Tjek om din backend kører.</p>';
-                });
-        });
-
-        /* --------------------------------------------------------------------------
-           # PIZZA CHART EXCLUSIVE LOGIK
-           -------------------------------------------------------------------------- */
-        function toggleMetricDropdown(e) { 
-            e.stopPropagation(); 
-            document.getElementById('metricsWrapper').classList.toggle('show'); 
-        }
-        
-        window.addEventListener('click', () => { document.getElementById('metricsWrapper').classList.remove('show'); });
-        document.getElementById('metricsWrapper').addEventListener('click', (e) => { e.stopPropagation(); });
-
-        function buildMetricsCheckboxes() {
-            const wrapper = document.getElementById('metricsWrapper');
-            if (!wrapper) return;
-            wrapper.innerHTML = "";
-
-            for (const [category, metricsObj] of Object.entries(allMetrics)) {
-                const catLabel = document.createElement('div');
-                catLabel.className = "metric-group-title";
-                catLabel.innerText = category;
-                wrapper.appendChild(catLabel);
-
-                let isFirstInMetricCategory = true;
-
-                for (const [key, displayName] of Object.entries(metricsObj)) {
-                    const item = document.createElement('div');
-                    item.className = "checkbox-item";
-                    
-                    const isCheckedStr = isFirstInMetricCategory ? "checked" : "";
-                    
-                    item.innerHTML = `
-                        <input type="checkbox" name="pizzaMetrics" value="${key}" id="chk-${key}" ${isCheckedStr} onchange="updateDropdownStatus(); fetchPizza();">
-                        <label for="chk-${key}" style="flex:1; cursor:pointer;">${displayName.replace('\n', ' ')}</label>
-                    `;
-                    wrapper.appendChild(item);
-                    isFirstInMetricCategory = false; 
-                }
-            }
-            updateDropdownStatus();
-            fetchPizza(); 
-        }
-
-        function updateDropdownStatus() {
-            const checkedBoxes = document.querySelectorAll('input[name="pizzaMetrics"]:checked');
-            const trigger = document.getElementById('metricDropdownTrigger');
-            if (trigger) {
-                trigger.innerText = checkedBoxes.length === 0 ? "Vælg metrics..." : `${checkedBoxes.length} metrics valgt`;
-            }
-        }
-
-        function fetchPizza() {
-            const playerSelectEl = document.getElementById('playerSelect');
-            const posSelectEl = document.getElementById('posSelect');
-            const colorPickerEl = document.getElementById('colorPicker');
-
-            if (!playerSelectEl || !posSelectEl || !colorPickerEl) return;
-
-            const player = playerSelectEl.value || "";
-            const position = posSelectEl.value || "";
-            const color = colorPickerEl.value;
-            
-            const checkedBoxes = document.querySelectorAll('input[name="pizzaMetrics"]:checked');
-            const selectedMetrics = Array.from(checkedBoxes).map(cb => cb.value);
-
-            if (selectedMetrics.length < 3) {
-                document.getElementById('chart-container').innerHTML = '<p style="color: #64748b; text-align: center;">Vælg mindst 3 metrics i dropdown-menuen for at bygge dit pizza-diagram...</p>';
-                return;
-            }
-
-            if (!player || !position) {
-                document.getElementById('chart-container').innerHTML = '<p style="color: #64748b; text-align: center;">Indlæser spiller- og positionsdata...</p>';
-                return;
-            }
-
-            fetch('/api/generate-pizza', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ player, position, color, metrics: selectedMetrics })
-            })
-            .then(res => {
-                if (!res.ok) throw new Error(`HTTP fejlstatus: ${res.status}`);
-                return res.json();
-            })
-            .then(data => {
-                if (data.html) {
-                    document.getElementById('chart-container').innerHTML = data.html;
-                    nuvaerendeSpillerNavn = data.player_name || "report";
-                } else if (data.detail) {
-                    document.getElementById('chart-container').innerHTML = `<p style="color: #ef4444; text-align: center;">Serverfejl: ${data.detail}</p>`;
-                }
-            })
-            .catch(e => {
-                console.error("Fejl under generering af pizzadiagram:", e);
-                document.getElementById('chart-container').innerHTML = '<p style="color: #ef4444; text-align: center;">Kunne ikke hente diagram. Tjek din internetforbindelse eller om app.py kører.</p>';
-            });
-        }
-
-        function downloadPNG() {
-            const el = document.getElementById("chart-only");
-            if (!el) {
-                console.error("Fejl: Elementet med id 'chart-only' blev ikke fundet.");
-                return;
-            }
-            const title = document.querySelector('.p-nm'); 
-            if(title) { title.style.webkitTextFillColor = '#fff'; title.style.color = '#fff'; } 
-            
-            html2canvas(el, { scale: 4, backgroundColor: "#0B1220", useCORS: true, logging: false }).then(canvas => { 
-                if(title) title.style.webkitTextFillColor = '#fff'; 
-                const link = document.createElement("a"); 
-                link.download = "report_" + nuvaerendeSpillerNavn.toLowerCase().replace(/ /g, "_") + ".png"; 
-                link.href = canvas.toDataURL("image/png"); 
-                link.click(); 
-            }).catch(e => { if(title) title.style.webkitTextFillColor = '#fff'; console.error(e); }); 
-        }
-    </script>
+    <!-- # LINK TIL SCRIPT: Forbinder din HTML direkte med din nye logik- og API-fil -->
+    <script src="/static/script.js"></script>
 </body>
 </html>
