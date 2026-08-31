@@ -25,20 +25,19 @@ body {
     gap: 25px; 
 }
 
-/* Fælles setup-bar øverst på alle datasider (Nu kompakt og låst til skarpe element-bredder) */
+/* Fælles setup-bar øverst på alle datasider (Nu perfekt centreret) */
 .top-setup-bar { 
     display: grid;
-    /* Låser de fire inputfelter til præcis 200px i stedet for at lade dem strække sig unødvendigt */
     grid-template-columns: repeat(4, 200px);
     gap: 20px;
     background: #111827; 
     padding: 20px; 
     border-radius: 16px; 
     border: 1px solid rgba(255,255,255,0.05); 
-    /* Sætter bredden til det maksimale indhold, så boksen samler sig flot */
     width: max-content;
     max-width: 100%;
-    margin-bottom: 5px;
+    /* RETTELSE: margin sat til 'auto' i siderne for fuldstændig centrering */
+    margin: 0 auto 5px;
     box-sizing: border-box;
 }
 
@@ -274,10 +273,11 @@ input[type="color"] {
         padding: 15px;
     }
 
-    /* På mobil ophæver vi de faste 200px og lader felterne fylde skærmen ud i et 2x2 grid */
+    /* På mobil fjerner vi centreringen og lader bjælken strække sig til 100% bredde */
     .top-setup-bar {
         grid-template-columns: repeat(2, 1fr) !important;
         width: 100% !important;
+        margin: 0 0 15px !important;
         gap: 15px;
         padding: 15px;
     }
@@ -287,14 +287,12 @@ input[type="color"] {
         padding: 15px;
     }
 
-    /* Gør selve SVG-diagrammerne fuldstændig responsive på telefonskærme */
     #chart-container svg, #radar-chart-container svg {
         width: 100% !important;
         height: auto !important;
         max-width: 100%;
     }
 
-    /* Hvis skærmen er helt smal (under 480px, f.eks. i højformat), stables alt lodret i en 1x1 liste */
     @media (max-width: 480px) {
         .top-setup-bar {
             grid-template-columns: 1fr !important;
