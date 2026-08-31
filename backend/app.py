@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 # Vi importerer Pydantic-modellen og routeren fra dit nye modul
-from routers.pizza import router as pizza_router, PizzaRequest
+from backend.routers.pizza import router as pizza_router, PizzaRequest
 
 app = FastAPI(title="PER 90 - Fodbold Data App")
 
