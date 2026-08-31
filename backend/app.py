@@ -103,10 +103,8 @@ class PizzaRequest(BaseModel):
 
 @app.post("/api/generate-pizza")
 def generate_pizza(req_data: PizzaRequest):
-    """Genererer dit SVG-pizzadiagram baseret på percentil-beregninger inden for ligaen."""
     try:
         p1 = req_data.player
-        selected_pos = req_data.position
         sel_keys = req_data.metrics
         selected_color = req_data.color
 
@@ -116,11 +114,17 @@ def generate_pizza(req_data: PizzaRequest):
         data = load_data()
         pos_column = 'Pos.' if 'Pos.' in data.columns else ('Position' if 'Position' in data.columns else data.columns)
         
+        # Find spillerens række i din data
         player_row = data[data['Player Name'] == p1].iloc[0]
         player_league = player_row['League']
         
+        # SMART OG SIMPELT: Vi tvinger appen til at bruge spillerens faktiske position fra jeres data
+        selected_pos = str(player_row[pos_column])
+        
+        # Nu kører dit filter fuldstændig automatisk mod spillerens rigtige position
         filter_mask = (data['League'] == player_league) & (data[pos_column] == selected_pos)
         comparison_df = data[filter_mask].copy()
+
         
         if p1 not in comparison_df['Player Name'].values:
             comparison_df = pd.concat([comparison_df, data[data['Player Name'] == p1]], ignore_index=True)
@@ -133,7 +137,7 @@ def generate_pizza(req_data: PizzaRequest):
         team_id = r1['contestantId']
         logo_base64 = ""
         try:
-            url = f'https://opta.net{team_id}'
+            url = f'https://omo.akamai.opta.net/image.php?secure=true&h=omo.akamai.opta.net&sport=football&entity=team&description=badges&dimensions=150&id={team_id}'
             response = requests.get(url, timeout=3)
             if response.status_code == 200:
                 team_logo = Image.open(BytesIO(response.content))
@@ -196,10 +200,10 @@ def generate_pizza(req_data: PizzaRequest):
             labels += f'<g transform="translate({tx:.1f}, {ty:.1f})">{label_text}{val_badge}</g>\n'
 
         logo_html = f'<img class="club-crest-small" src="{logo_base64}" />' if logo_base64 else ''
-        image_html = f'<image href="{logo_base64}" x="{CX-24}" y="{CY-24}" height="48" width="48"/>' if logo_base64 else ''
+    
         league_val = str(r1.get('League', 'N/A'))
+        team_val = str(r1.get('Team', 'N/A')) if 'Team' in r1 else str(r1.get('Team Name', 'N/A'))
         pos_val = str(r1.get('Pos.', 'N/A'))
-        
         mins_raw = r1.get('total mins played', 0)
         mins_val = "0" if pd.isna(mins_raw) else str(int(mins_raw))
         
@@ -254,7 +258,7 @@ def generate_pizza(req_data: PizzaRequest):
                             <div class="p-sub-bar">
                                 <div class="meta-item">
                                     <div class="logo-shape">{logo_html}</div>
-                                    <span class="data-val">{league_val}</span>
+                                    <span class="data-val">{team_val}</span>
                                 </div>
                                 <span class="pipe-divider">|</span>
                                 <div class="meta-item">
@@ -275,7 +279,6 @@ def generate_pizza(req_data: PizzaRequest):
                     <circle cx="{CX}" cy ="100" class="grid-circle" />
                     <circle cx="{CX}" cy="{CY}" r="150" class="grid-circle" />
                     <circle cx="{CX}" cy="{CY}" r="{MAX_R}" class="grid-circle" style="stroke: rgba(255, 255, 255, .08);" />
-                    {image_html}
                     {pizza_slices} {grid_lines} {labels}
                 </svg>
                 <div class="chart-footer">{p1}'s percentile rank vs. {player_league} {selected_pos}s</div>
@@ -284,7 +287,12 @@ def generate_pizza(req_data: PizzaRequest):
             <div class="download"><button onclick="downloadPNG()">Download as PNG</button></div>
         </div>
         """
-        return {"html": html_pizza, "player_name": p1_display}
+        # Find din return-linje i bunden af generate_pizza og opdater den til dette:
+        return {
+            "html": html_pizza, 
+            "player_name": p1_display,
+            "position": selected_pos  # <-- Vi sender spillerens rigtige position med tilbage her
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
