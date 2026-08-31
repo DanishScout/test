@@ -1,331 +1,296 @@
-/* ==========================================================================
-   # GLOBALE STYLES (Anvendes på tværs af hele applikationen)
-   ========================================================================== */
-body { 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    background: #060b13; 
-    color: #fff; 
-    margin: 0; 
-    padding: 0; 
-}
+// ==========================================================================
+// # GLOBALE APP-VARIABLER
+// ==========================================================================
+let allMetrics = {};
+let radarMetrics = {};
+let nuvaerendeSpillerNavn = "report";
 
-.app-container {
-    padding: 30px;
-    max-width: 1400px;
-    margin: 0 auto;
-}
+/* --------------------------------------------------------------------------
+   # GLOBALE NAVIGATION FUNKTIONER
+   # Styrer faneskift i topmenuen og aktiverer de korrekte diagramkald.
+   -------------------------------------------------------------------------- */
+function switchPage(pageId, e) {
+    const targetPage = ['home', 'pizza', 'scatter', 'radar'].includes(pageId) ? pageId : 'placeholder';
+    document.querySelectorAll('.nav-menu .nav-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
 
-/* Sidernes synlighed - styrer hvilken fane der vises */
-.page-content { 
-    display: none; 
-}
-.page-content.active { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 25px; 
-}
-
-/* Fælles setup-bar øverst på alle datasider (Perfekt centreret over diagrammet) */
-.top-setup-bar { 
-    display: grid;
-    grid-template-columns: repeat(4, 200px);
-    gap: 20px;
-    background: #111827; 
-    padding: 20px; 
-    border-radius: 16px; 
-    border: 1px solid rgba(255,255,255,0.05); 
-    width: max-content;
-    max-width: 100%;
-    margin: 0 auto 5px;
-    box-sizing: border-box;
-}
-
-/* Fælles centralt visningsområde med et flot, dæmpet grid-linjemønster */
-.main-content { 
-    width: 100%;
-    background: #0b1220;
-    background-image: 
-        linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
-    background-size: 30px 30px;
-    background-position: center;
-    padding: 30px; 
-    border-radius: 16px; 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    min-height: 650px; 
-    box-sizing: border-box;
-    border: 1px solid rgba(0, 240, 255, 0.04);
-}
-
-/* Fælles styling til formularer, inputfelter og dropdowns */
-.form-group { 
-    margin-bottom: 0; 
-}
-
-label { 
-    display: block; 
-    margin-bottom: 8px; 
-    font-weight: bold; 
-    font-size: 11px; 
-    color: #64748b; 
-    text-transform: uppercase; 
-    letter-spacing: 0.5px; 
-}
-
-select, input[type="color"] { 
-    width: 100%; 
-    padding: 12px; 
-    background: #1f2937; 
-    border: 1px solid #374151; 
-    color: #fff; 
-    border-radius: 8px; 
-    font-size: 14px; 
-    box-sizing: border-box; 
-    height: 45px; 
-}
-
-input[type="color"] { 
-    padding: 4px; 
-    cursor: pointer; 
-}
-
-/* Fælles eksport-knap */
-.export-btn { 
-    background: rgba(0, 240, 255, 0.05); 
-    color: #00FFD5; 
-    border: 1px solid rgba(0, 240, 255, 0.2); 
-    padding: 12px 20px; 
-    border-radius: 8px; 
-    font-weight: bold; 
-    font-size: 12px; 
-    cursor: pointer; 
-    text-transform: uppercase; 
-    letter-spacing: 0.5px; 
-    transition: all 0.2s; 
-    height: 45px; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-}
-.export-btn:hover { 
-    background: rgba(0, 240, 255, 0.1); 
-    border-color: #00FFD5; 
-    color: #fff; 
-}
-
-/* ==========================================================================
-   # GLOBAL NAVIGATION & TOP HEADER
-   ========================================================================== */
-.global-header {
-    background: #0b1220;
-    border-bottom: 1px solid rgba(0, 240, 255, 0.08);
-    padding: 15px 40px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 30px; 
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-}
-
-.app-logo-text {
-    font-size: 20px;
-    font-weight: 900;
-    color: #fff;
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-    user-select: none;
-}
-.logo-slash {
-    color: #ef4444;
-    text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
-    margin: 0 1px;
-}
-
-.nav-menu {
-    display: flex;
-    gap: 4px;
-    overflow-x: auto;
-    white-space: nowrap;
-    flex: 1;
-    padding-bottom: 2px;
-}
-.nav-menu::-webkit-scrollbar { display: none; }
-.nav-menu { -ms-overflow-style: none; scrollbar-width: none; }
-
-.nav-btn {
-    background: transparent;
-    border: 1px solid transparent;
-    color: #94a3b8;
-    padding: 8px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 11px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    position: relative;
-}
-
-.nav-btn:hover {
-    color: #fff;
-    background: rgba(0, 240, 255, 0.03);
-}
-
-.nav-btn.active {
-    color: #00FFD5;
-    background: rgba(0, 240, 255, 0.06);
-    border-color: rgba(0, 240, 255, 0.12);
-}
-
-.nav-btn::after {
-    content: '';
-    position: absolute;
-    bottom: 2px;
-    left: 50%;
-    width: 0;
-    height: 2px;
-    background: #00FFD5;
-    transition: all 0.25s ease;
-    transform: translateX(-50%);
-    border-radius: 2px;
-    opacity: 0;
-}
-.nav-btn:hover::after {
-    width: 40%;
-    opacity: 0.8;
-}
-.nav-btn.active::after { 
-    width: 0; 
-}
-/* ==========================================================================
-   # HOME SKÆRM EXCLUSIVE STYLES
-   ========================================================================= */
-.home-card { 
-    background: #111827; 
-    border: 1px solid rgba(255,255,255,0.05); 
-    padding: 40px; 
-    border-radius: 20px; 
-    text-align: center; 
-    width: 100%; 
-    max-width: 600px; 
-    margin: 50px auto; 
-}
-
-/* ==========================================================================
-   # PIZZA & MULTI-SELECT DROPDOWNS EXCLUSIVE STYLES (Med rettet retning & lysstyrke)
-   ========================================================================= */
-.dropdown-select-box { 
-    position: relative; 
-    width: 100%; 
-}
-
-.dropdown-trigger {
-    width: 100%; padding: 12px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 8px; font-size: 14px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 45px;
-}
-.dropdown-trigger::after { content: '▼'; font-size: 10px; color: #64748b; }
-
-.dropdown-content {
-    display: none; position: absolute; top: 100%; left: 0; width: 100%; background: #1f2937; border: 1px solid #374151; border-radius: 8px; margin-top: 4px; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 25px rgba(0,0,0,0.5); padding: 5px 0;
-}
-.dropdown-content.show { display: block; }
-
-.metric-group-title { 
-    font-size: 11px; color: #00FFD5; padding: 6px 12px 4px 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0, 240, 255, 0.02); 
-}
-
-.checkbox-item { 
-    display: flex; 
-    /* RETTELSE: Centrerer tjekboks og ligatekst fuldstændig snorlige vertikalt */
-    align-items: center; 
-    gap: 12px; 
-    padding: 8px 12px; 
-    font-size: 13px; 
-    cursor: pointer; 
-    transition: background 0.15s ease; 
-}
-.checkbox-item:hover { background: #2d3748; }
-
-.checkbox-item input { 
-    accent-color: #00FFD5; 
-    width: 16px; 
-    height: 16px; 
-    cursor: pointer; 
-    margin: 0; /* Fjerner browserens standard-margin, der skubber boksen ud af kurs */
-}
-
-/* Sætter den dæmpede basistekst for ikke-valgte metrics */
-.checkbox-item label {
-    color: #94a3b8;
-    opacity: 0.45;
-    cursor: pointer;
-    font-weight: 600;
-    margin: 0;
-    transition: all 0.15s ease;
-}
-
-/* RETTELSE: Tænder for fuld hvid styrke (opacity: 1) på teksten, så snart fluebenet er sat */
-.checkbox-item:has(input:checked) label {
-    color: #ffffff !important;
-    opacity: 1 !important;
-}
-
-#chart-container, #radar-chart-container { width: 100%; display: flex; justify-content: center; flex-direction: column; align-items: center; }
-
-/* ==========================================================================
-   # PIZZA CHART EXCLUSIVE STYLES
-   ========================================================================= */
-#chart-container { 
-    width: 100%; 
-    display: flex; 
-    justify-content: center; 
-    flex-direction: column; 
-    align-items: center; 
-}
-
-/* ==========================================================================
-   # RADAR COMPARISON EXCLUSIVE STYLES
-   ========================================================================= */
-#radar-chart-container { 
-    width: 100%; 
-    display: flex; 
-    justify-content: center; 
-    flex-direction: column; 
-    align-items: center; 
-}
-
-/* ==========================================================================
-   # RESPONSIVT LAYOUT: MOBILOPTIMERING (Skærme under 768px)
-   ========================================================================= */
-@media (max-width: 768px) {
-    .app-container {
-        padding: 15px;
-    }
-
-    .top-setup-bar {
-        grid-template-columns: repeat(2, 1fr) !important;
-        width: 100% !important;
-        margin: 0 0 15px !important;
-        gap: 15px;
-        padding: 15px;
-    }
-
-    .main-content {
-        min-height: auto;
-        padding: 15px;
-    }
-
-    #chart-container svg, #radar-chart-container svg {
-        width: 100% !important;
-        height: auto !important;
-        max-width: 100%;
-    }
-
-    @media (max-width: 480px) {
-        .top-setup-bar {
-            grid-template-columns: 1fr !important;
+    if (e && e.target) {
+        e.target.classList.add('active');
+        if (targetPage === 'placeholder') {
+            const moduleName = e.target.innerText;
+            document.getElementById('placeholder-sidebar-title').innerText = moduleName + " Setup";
+            document.getElementById('placeholder-main-title').innerText = moduleName + " Visualisering";
         }
     }
+    document.getElementById(`page-${targetPage}`).classList.add('active');
+    
+    // Henter automatisk data, når brugeren skifter til en aktiv diagramside
+    if (targetPage === 'pizza') { fetchPizza(); }
+    if (targetPage === 'radar') { fetchRadar(); }
+}
+
+/* --------------------------------------------------------------------------
+   # GLOBAL DATA INITIALISERING
+   # Henter kun ægte data fra din app.py backend og fylder alle dropdown-menuer.
+   -------------------------------------------------------------------------- */
+document.addEventListener("DOMContentLoaded", () => {
+    fetch('/api/initial-data')
+        .then(res => {
+            if (!res.ok) throw new Error(`Kunne ikke hente startdata: ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            const playerSel = document.getElementById('playerSelect');
+            const posSel = document.getElementById('posSelect');
+            const radarP1Sel = document.getElementById('radarPlayer1Select');
+            const radarP2Sel = document.getElementById('radarPlayer2Select');
+            
+            // Fyld Pizza dropdowns
+            if (playerSel && posSel) {
+                data.players.forEach(p => playerSel.add(new Option(p, p)));
+                data.positions.forEach(pos => posSel.add(new Option(pos, pos)));
+            }
+            
+            // Fyld Radar dropdowns med den samme komplette spillerliste
+            if (radarP1Sel && radarP2Sel) {
+                data.players.forEach(p => radarP1Sel.add(new Option(p, p)));
+                data.players.forEach(p => radarP2Sel.add(new Option(p, p)));
+                // Sætter Spiller 2 til indeks 1 som standard, så der vælges to forskellige spillere ved start
+                if (radarP2Sel.options.length > 1) radarP2Sel.selectedIndex = 1;
+            }
+            
+            allMetrics = data.metrics;
+            // Fallback til standard metrics, hvis radar_metrics ikke er defineret særskilt i din backend endnu
+            radarMetrics = data.radar_metrics || data.metrics;
+            
+            // Byg afkrydsningsmenuerne i dine dropdowns uafhængigt af hinanden
+            buildMetricsCheckboxes();
+            buildRadarMetricsCheckboxes();
+        })
+        .catch(err => {
+            console.error("Kritisk fejl under initialisering:", err);
+            const msg = '<p style="color: #ef4444; text-align: center;">Kunne ikke indlæse data fra serveren. Tjek om din backend (app.py) kører.</p>';
+            if (document.getElementById('chart-container')) document.getElementById('chart-container').innerHTML = msg;
+            if (document.getElementById('radar-chart-container')) document.getElementById('radar-chart-container').innerHTML = msg;
+        });
+});
+/* --------------------------------------------------------------------------
+   # PIZZA CHART EXCLUSIVE LOGIK
+   # Styrer dropdown-synlighed, metric-valg og POST-kald for Pizza-diagrammet.
+   -------------------------------------------------------------------------- */
+function toggleMetricDropdown(e) { 
+    e.stopPropagation(); 
+    document.getElementById('metricsWrapper').classList.toggle('show'); 
+}
+
+window.addEventListener('click', () => { 
+    if (document.getElementById('metricsWrapper')) {
+        document.getElementById('metricsWrapper').classList.remove('show'); 
+    }
+});
+
+// Forhindrer dropdown-menuen i at lukke sig, når der klikkes på selve elementerne
+setTimeout(() => {
+    const el = document.getElementById('metricsWrapper');
+    if (el) el.addEventListener('click', (e) => { e.stopPropagation(); });
+}, 100);
+
+function buildMetricsCheckboxes() {
+    const wrapper = document.getElementById('metricsWrapper');
+    if (!wrapper) return;
+    wrapper.innerHTML = "";
+
+    for (const [category, metricsObj] of Object.entries(allMetrics)) {
+        const catLabel = document.createElement('div');
+        catLabel.className = "metric-group-title";
+        catLabel.innerText = category;
+        wrapper.appendChild(catLabel);
+
+        let isFirstInMetricCategory = true;
+        for (const [key, displayName] of Object.entries(metricsObj)) {
+            const item = document.createElement('div');
+            item.className = "checkbox-item";
+            const isCheckedStr = isFirstInMetricCategory ? "checked" : "";
+            
+            item.innerHTML = `
+                <input type="checkbox" name="pizzaMetrics" value="${key}" id="chk-${key}" ${isCheckedStr} onchange="updateDropdownStatus(); fetchPizza();">
+                <label for="chk-${key}" style="flex:1; cursor:pointer;">${displayName.replace('\n', ' ')}</label>
+            `;
+            wrapper.appendChild(item);
+            isFirstInMetricCategory = false; 
+        }
+    }
+    updateDropdownStatus();
+    fetchPizza(); 
+}
+
+function updateDropdownStatus() {
+    const checkedBoxes = document.querySelectorAll('input[name="pizzaMetrics"]:checked');
+    const trigger = document.getElementById('metricDropdownTrigger');
+    if (trigger) {
+        trigger.innerText = checkedBoxes.length === 0 ? "Vælg metrics..." : `${checkedBoxes.length} metrics valgt`;
+    }
+}
+
+function fetchPizza() {
+    const playerSelectEl = document.getElementById('playerSelect');
+    const posSelectEl = document.getElementById('posSelect');
+    const colorPickerEl = document.getElementById('colorPicker');
+
+    if (!playerSelectEl || !posSelectEl || !colorPickerEl) return;
+
+    const player = playerSelectEl.value || "";
+    const position = posSelectEl.value || "";
+    const color = colorPickerEl.value;
+    const checkedBoxes = document.querySelectorAll('input[name="pizzaMetrics"]:checked');
+    const selectedMetrics = Array.from(checkedBoxes).map(cb => cb.value);
+
+    if (selectedMetrics.length < 3) {
+        document.getElementById('chart-container').innerHTML = '<p style="color: #64748b; text-align: center;">Vælg mindst 3 metrics i dropdown-menuen for at bygge dit pizza-diagram...</p>';
+        return;
+    }
+
+    if (!player || !position) return;
+
+    fetch('/api/pizza/generate-pizza', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player, position, color, metrics: selectedMetrics })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.html) {
+            document.getElementById('chart-container').innerHTML = data.html;
+            nuvaerendeSpillerNavn = data.player_name || "report";
+            
+            // SIMPELT: Tvinger dropdown-menuen på skærmen til at matche spillerens sande position
+            if (data.position) {
+                document.getElementById('posSelect').value = data.position;
+            }
+        }
+    });
+
+}
+
+function downloadPNG() {
+    const el = document.getElementById("chart-only");
+    if (!el) return;
+    
+    const title = document.querySelector('.p-nm'); 
+    if (title) { title.style.webkitTextFillColor = '#fff'; title.style.color = '#fff'; } 
+    
+    html2canvas(el, { scale: 4, backgroundColor: "#0B1220", useCORS: true, logging: false }).then(canvas => { 
+        if (title) title.style.webkitTextFillColor = '#fff'; 
+        const link = document.createElement("a"); 
+        link.download = "pizza_" + nuvaerendeSpillerNavn.toLowerCase().replace(/ /g, "_") + ".png"; 
+        link.href = canvas.toDataURL("image/png"); 
+        link.click(); 
+    }).catch(e => console.error(e)); 
+}
+/* --------------------------------------------------------------------------
+   # RADAR CHART EXCLUSIVE LOGIK
+   # Styrer dropdown-synlighed, metric-valg og POST-kald for to-spillers radaren.
+   -------------------------------------------------------------------------- */
+function toggleRadarMetricDropdown(e) { 
+    e.stopPropagation(); 
+    document.getElementById('radarMetricsWrapper').classList.toggle('show'); 
+}
+
+window.addEventListener('click', () => { 
+    if (document.getElementById('radarMetricsWrapper')) {
+        document.getElementById('radarMetricsWrapper').classList.remove('show'); 
+    }
+});
+
+// Forhindrer dropdown-menuen i at lukke sig, når der klikkes på selve elementerne
+setTimeout(() => {
+    const el = document.getElementById('radarMetricsWrapper');
+    if (el) el.addEventListener('click', (e) => { e.stopPropagation(); });
+}, 100);
+
+function buildRadarMetricsCheckboxes() {
+    const wrapper = document.getElementById('radarMetricsWrapper');
+    if (!wrapper) return;
+    wrapper.innerHTML = "";
+
+    for (const [category, metricsObj] of Object.entries(radarMetrics)) {
+        const catLabel = document.createElement('div');
+        catLabel.className = "metric-group-title";
+        catLabel.innerText = category;
+        wrapper.appendChild(catLabel);
+
+        let isFirstInMetricCategory = true;
+        for (const [key, displayName] of Object.entries(metricsObj)) {
+            const item = document.createElement('div');
+            item.className = "checkbox-item";
+            const isCheckedStr = isFirstInMetricCategory ? "checked" : "";
+            
+            item.innerHTML = `
+                <input type="checkbox" name="radarMetrics" value="${key}" id="chk-radar-${key}" ${isCheckedStr} onchange="updateRadarDropdownStatus(); fetchRadar();">
+                <label for="chk-radar-${key}" style="flex:1; cursor:pointer;">${displayName.replace('\n', ' ')}</label>
+            `;
+            wrapper.appendChild(item);
+            isFirstInMetricCategory = false; 
+        }
+    }
+    updateRadarDropdownStatus();
+    fetchRadar(); 
+}
+
+function updateRadarDropdownStatus() {
+    const checkedBoxes = document.querySelectorAll('input[name="radarMetrics"]:checked');
+    const trigger = document.getElementById('radarMetricDropdownTrigger');
+    if (trigger) {
+        trigger.innerText = checkedBoxes.length === 0 ? "Vælg radar metrics..." : `${checkedBoxes.length} metrics valgt`;
+    }
+}
+
+function fetchRadar() {
+    const p1Sel = document.getElementById('radarPlayer1Select');
+    const p2Sel = document.getElementById('radarPlayer2Select');
+
+    if (!p1Sel || !p2Sel) return;
+
+    const player1 = p1Sel.value || "";
+    const player2 = p2Sel.value || "";
+    const checkedBoxes = document.querySelectorAll('input[name="radarMetrics"]:checked');
+    const selectedMetrics = Array.from(checkedBoxes).map(cb => cb.value);
+
+    if (selectedMetrics.length < 3) {
+        document.getElementById('radar-chart-container').innerHTML = '<p style="color: #64748b; text-align: center;">Vælg mindst 3 metrics i dropdown-menuen for at bygge dit radardiagram...</p>';
+        return;
+    }
+
+    if (!player1 || !player2) return;
+
+    fetch('/api/radar/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player1, player2, metrics: selectedMetrics })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error(`HTTP fejlstatus: ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        if (data.html) {
+            document.getElementById('radar-chart-container').innerHTML = data.html;
+        }
+    })
+    .catch(e => {
+        console.error("Fejl under generering af radardiagram:", e);
+        document.getElementById('radar-chart-container').innerHTML = '<p style="color: #ef4444; text-align: center;">Kunne ikke hente radardiagram. Tjek din serverforbindelse.</p>';
+    });
+}
+
+function downloadRadarPNG() {
+    const el = document.getElementById("chart-only");
+    if (!el) return;
+    
+    html2canvas(el, { scale: 4, backgroundColor: "#0B1220", useCORS: true, logging: false }).then(canvas => { 
+        const link = document.createElement("a"); 
+        link.download = "radar_comparison.png"; 
+        link.href = canvas.toDataURL("image/png"); 
+        link.click(); 
+    }).catch(e => console.error("Eksportfejl på radar:", e));
 }
