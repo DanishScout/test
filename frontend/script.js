@@ -9,11 +9,7 @@ let nuvaerendeSpillerNavn = "report";
    # GLOBALE NAVIGATION FUNKTIONER
    # Styrer faneskift i topmenuen og aktiverer de korrekte diagramkald.
    -------------------------------------------------------------------------- */
-/* --------------------------------------------------------------------------
-   # GLOBALE NAVIGATION FUNKTIONER (Opdateret med radar)
-   -------------------------------------------------------------------------- */
 function switchPage(pageId, e) {
-    // Sørger for at browseren genkender 'radar' som en rigtig side i stedet for en placeholder
     const targetPage = ['home', 'pizza', 'scatter', 'radar'].includes(pageId) ? pageId : 'placeholder';
     document.querySelectorAll('.nav-menu .nav-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
@@ -28,14 +24,13 @@ function switchPage(pageId, e) {
     }
     document.getElementById(`page-${targetPage}`).classList.add('active');
     
-    // Trigger automatisk opdatering af graferne, når fanerne klikkes
+    // Henter automatisk data, når brugeren skifter til en aktiv diagramside
     if (targetPage === 'pizza') { fetchPizza(); }
     if (targetPage === 'radar') { fetchRadar(); }
 }
 
-
 /* --------------------------------------------------------------------------
-   # DATA INITIALISERING (Kører automatisk ved opstart)
+   # GLOBAL DATA INITIALISERING
    # Henter kun ægte data fra din app.py backend og fylder alle dropdown-menuer.
    -------------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
@@ -162,19 +157,19 @@ function fetchPizza() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ player, position, color, metrics: selectedMetrics })
     })
-    .then(res => {
-        if (!res.ok) throw new Error(`HTTP fejlstatus: ${res.status}`);
-        return res.json();
-    })
+    .then(res => res.json())
     .then(data => {
         if (data.html) {
             document.getElementById('chart-container').innerHTML = data.html;
             nuvaerendeSpillerNavn = data.player_name || "report";
-        } else if (data.detail) {
-            document.getElementById('chart-container').innerHTML = `<p style="color: #ef4444; text-align: center;">Serverfejl: ${data.detail}</p>`;
+            
+            // SIMPELT: Tvinger dropdown-menuen på skærmen til at matche spillerens sande position
+            if (data.position) {
+                document.getElementById('posSelect').value = data.position;
+            }
         }
-    })
-    .catch(e => console.error("Fejl under generering af pizzadiagram:", e));
+    });
+
 }
 
 function downloadPNG() {
