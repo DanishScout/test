@@ -1,12 +1,23 @@
 import os
+import sys
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-# Vi importerer Pydantic-modellen og routeren fra dit nye modul
+
+# Dynamisk stirettelse: Finder den præcise mappe, hvor app.py ligger,
+# og tilføjer den øverst i Pythons søgesti (Løser Render-fejlen permanent).
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
+
+# Nu virker denne import fejlfrit på Render, lokalt og i alle testmiljøer!
 from routers.pizza import router as pizza_router, PizzaRequest
 
 app = FastAPI(title="PER 90 - Fodbold Data App")
+
+# ... resten af din app.py fortsætter fuldstændig uændret herfra ...
+
 
 # --- KONFIGURATION & DATASTIER ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
