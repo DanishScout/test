@@ -1,7 +1,7 @@
 # ==========================================
 # SEKTION 1: GLOBALT FOR HELE APPEN
 # ==========================================
-
+from fastapi.staticfiles import StaticFiles
 import os
 import math
 import base64
@@ -17,11 +17,12 @@ from typing import List
 
 app = FastAPI(title="PER 90 - Fodbold Data App")
 
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV1_PATH = os.path.join(BASE_DIR, 'den1.csv')
 CSV2_PATH = os.path.join(BASE_DIR, 'den2.csv')
 FRONTEND_PATH = os.path.abspath(os.path.join(BASE_DIR, '..', 'frontend', 'index.html'))
+app.mount("/static", StaticFiles(directory=os.path.dirname(FRONTEND_PATH)), name="static")
+
 
 def load_data():
     """
