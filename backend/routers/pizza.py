@@ -38,7 +38,9 @@ def process_pizza_data(req: PizzaRequest, app_metrics: dict, df_loader):
         raise HTTPException(404, "Spilleren blev ikke fundet.")
 
     p_row = df[df['Player Name'] == p1].iloc[0]
-    selected_pos = str(p_row[pos_col])
+    
+    # DYNAMISK VALG: Lytter nu til frontend positions-dropdown i stedet for at nulstille
+    selected_pos = req.position if req.position else str(p_row[pos_col])
     
     # Filtrering mod liga og position
     comp_df = df[(df['League'] == p_row['League']) & (df[pos_col] == selected_pos)].copy()
@@ -72,18 +74,21 @@ def process_pizza_data(req: PizzaRequest, app_metrics: dict, df_loader):
 # ==========================================
 
 # ==========================================
-# ROUTERS/PIZZA.PY - DEL 2A AF 2
+# ROUTERS/PIZZA.PY - DEL 2 AF 2 (CENTERET)
+# ==========================================
+# ==========================================
+# ROUTERS/PIZZA.PY - DEL 2 AF 2 (GRADIENT)
 # ==========================================
 
 @router.post("/generate-pizza")
 def generate_pizza(req: PizzaRequest, app_metrics: dict, df_loader):
     try:
-        # Genbrug datalogi-funktionen fra Del 1
         err, r1, logo_base64, selected_pos, metrics_mapping = process_pizza_data(req, app_metrics, df_loader)
         if err: return err
 
         p1, sel_keys, selected_color = req.player, req.metrics, req.color
-        CX, CY, MAX_R, N = 355, 310, 200, len(sel_keys)
+        
+        CX, CY, MAX_R, N = 355, 270, 200, len(sel_keys)
         p1_display = p1 if len(p1) <= 35 else p1[:32] + "..."
         w = 360.0 / N
 
@@ -105,14 +110,13 @@ def generate_pizza(req: PizzaRequest, app_metrics: dict, df_loader):
             tx, ty = CX + (MAX_R + 42) * math.cos(rad(m_ang)), CY + (MAX_R + 42) * math.sin(rad(m_ang))
             tspans = "".join([f'<tspan x="0" dy="{"-4" if idx==0 else "1.1em"}">{l}</tspan>' for idx, l in enumerate(metrics_mapping.get(k, k).split('\n'))])
             
-            # RETTET AFSTAND: Øget markant for at stoppe overlap med metric-navnet
-            badge_y_offset = 18 if '\n' in metrics_mapping.get(k, k) else 5
+            badge_y_offset = 20 if '\n' in metrics_mapping.get(k, k) else 6
             
             labels += f"""<g transform="translate({tx:.1f}, {ty:.1f})">
                 <text class="ax-lbl" text-anchor="middle">{tspans}</text>
-                <g transform="translate(-13, {badge_y_offset})">
-                    <path d="M 0 0 L 26 0 L 26 10 C 26 15, 13 20, 13 20 C 13 20, 0 15, 0 10 Z" class="bg-b" />
-                    <text class="tx-b" x="13" y="11" text-anchor="middle">{int(val)}</text>
+                <g transform="translate(-15, {badge_y_offset})">
+                    <rect x="0" y="0" width="30" height="18" rx="5" class="bg-b" />
+                    <text class="tx-b" x="15" y="13" text-anchor="middle">{int(val)}</text>
                 </g>
             </g>\n"""
 
@@ -120,10 +124,6 @@ def generate_pizza(req: PizzaRequest, app_metrics: dict, df_loader):
         team_val = str(r1.get('Team', r1.get('Team Name', 'N/A')))
         mins_val = "0" if pd.isna(r1.get('total mins played')) else str(int(r1.get('total mins played', 0)))
 
-        # Fortsætter direkte i Del 2B under...
-        # ==========================================
-        # ROUTERS/PIZZA.PY - DEL 2B AF 2
-        # ==========================================
         html_pizza = f"""
         <div class="wrap" id="report">
             <div class="chart-container" id="chart-only">
@@ -134,13 +134,10 @@ def generate_pizza(req: PizzaRequest, app_metrics: dict, df_loader):
                     .chart-container::before {{ content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(#0f172a, #020617); z-index: 0; border-radius: 24px; }}
                     .header-card {{ position: relative; z-index: 2; width: 100%; max-width: 575px; margin: 15px auto 25px; padding: 20px 25px; border: 1px solid rgba(0, 240, 255, 0.08); border-radius: 16px; box-sizing: border-box; }}
                     .h-cnt {{ display: flex; gap: 20px; width: 100%; }}
-                    .p-meta-right {{ display: flex; flex-direction: column; flex-grow: 1; }}
+                    .p-meta-right {{ display: flex; flex-direction: column; flex-grow: 1; text-align: center; }}
                     .p-nm {{ font-size: 27px; font-weight: 700; margin: 0 0 10px; text-transform: uppercase; color: #fff; }}
-                    
-                    /* Tvinger højden frem, så divider-linjen bliver synlig */
                     .tactic-line {{ width: 100%; height: 2px !important; margin-bottom: 12px; display: block; }}
-                    
-                    .p-sub-bar {{ display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; flex-wrap: wrap; }}
+                    .p-sub-bar {{ display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; flex-wrap: wrap; }}
                     .meta-item {{ display: flex; align-items: center; gap: 6px; color: #fff; }}
                     .meta-item svg {{ opacity: .6; fill: none; stroke: {selected_color}; stroke-width: 2.5; width: 15px; height: 15px; }}
                     .logo-shape {{ display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: rgba(0,240,255,0.1); border: 1px solid {selected_color}; border-radius: 50%; padding: 2px; box-sizing: border-box; }}
@@ -155,7 +152,7 @@ def generate_pizza(req: PizzaRequest, app_metrics: dict, df_loader):
                     .bg-b {{ fill: #0f172a; stroke: {selected_color}cc; }}
                     .tx-b {{ fill: {selected_color}; font-size: 12px; font-weight: 700; }}
                     .chart-footer, .chart-footer-source {{ text-align: center; width: 100%; font-size: 11px; color: #e5e7eb; position: relative; z-index: 2; }}
-                    .chart-footer {{ margin-top: 1px; opacity: 0.75; }}
+                    .chart-footer {{ margin-top: 35px; opacity: 0.75; }}
                     .chart-footer-source {{ margin-top: 6px; opacity: 0.5; }}
                     .download {{ margin-top: 20px; z-index: 10; position: relative; }}
                     .download button {{ padding: 8px 14px; border-radius: 8px; border: 1px solid #1f2a37; background: #0f172a; color: #e5e7eb; cursor: pointer; font-size: 13px; font-weight: 700; }}
@@ -166,8 +163,10 @@ def generate_pizza(req: PizzaRequest, app_metrics: dict, df_loader):
                             <h2 class="p-nm">{p1_display}</h2>
                             <svg class="tactic-line" viewBox="0 0 100 2" preserveAspectRatio="none">
                                 <defs>
+                                    <!-- RETTET GRADIENT: Nu fader linjen blødt ud mod både venstre og højre side -->
                                     <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stop-color="{selected_color}" stop-opacity="0.6" />
+                                        <stop offset="0%" stop-color="{selected_color}" stop-opacity="0" />
+                                        <stop offset="50%" stop-color="{selected_color}" stop-opacity="0.6" />
                                         <stop offset="100%" stop-color="{selected_color}" stop-opacity="0" />
                                     </linearGradient>
                                 </defs>
@@ -189,7 +188,7 @@ def generate_pizza(req: PizzaRequest, app_metrics: dict, df_loader):
                         </div>
                     </div>
                 </div>
-                <svg width="710" height="570" viewBox="0 0 710 570">
+                <svg width="710" height="540" viewBox="0 0 710 540">
                     <circle cx="{CX}" cy="{CY}" r="50" class="grid-circle" />
                     <circle cx="{CX}" cy="{CY}" r="100" class="grid-circle" />
                     <circle cx="{CX}" cy="{CY}" r="150" class="grid-circle" />
