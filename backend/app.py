@@ -56,17 +56,23 @@ def get_index():
 
 @app.get("/api/initial-data")
 def get_initial_data():
-    """ Henter startdata til globale dropdown-menuer på frontend. """
+    """ Henter startdata og parrer spillere med deres sande default-positioner. """
     try:
         df = load_data()
         pos_col = 'Pos.' if 'Pos.' in df.columns else ('Position' if 'Position' in df.columns else df.columns)
+        
+        # Opretter et lynhurtigt opslagsværk: { "Alex Král": "CM/CDM", "Abdoulaye Camara": "RB/RCB" }
+        player_positions = df.dropna(subset=['Player Name', pos_col]).set_index('Player Name')[pos_col].to_dict()
+        
         return {
             "players": sorted(df['Player Name'].dropna().unique().tolist()),
             "positions": sorted(df[pos_col].dropna().unique().tolist()),
+            "player_positions": player_positions, # Sendes med til frontenden
             "metrics": PIZZA_METRICS
         }
     except Exception as e:
         raise HTTPException(500, str(e))
+
 
 
 # --- ROUTER INTEGRATION & WRAPPER ---
